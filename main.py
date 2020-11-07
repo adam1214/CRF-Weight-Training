@@ -1,5 +1,6 @@
 import numpy as np
 import joblib
+import pickle
 
 # 給定隨機種子，使每次執行結果保持一致
 np.random.seed(1)
@@ -27,6 +28,7 @@ class my_MBGD:
                 break
 
         self.X_batch = self.X[i+1:self.rand_pick_list[self.rand_pick_list_index]+1]
+        print(self.X_batch)
         self.Y_batch = self.Y[i+1:self.rand_pick_list[self.rand_pick_list_index]+1]
         
     # Loss function
@@ -59,6 +61,7 @@ if __name__ == "__main__":
     W = [] #weight will be trained, 24 dims. Initialize 0 for each dim
     for i in range(24):
         W.append(0)
+
     for dialog in dialogs.values():
         for utt in dialog:
             if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
