@@ -54,8 +54,10 @@ class my_MBGD:
         self.loss = self.mse()
 
 if __name__ == "__main__":
-    emo_dict = joblib.load('emo_all_iemocap.pkl')
-    dialogs = joblib.load('dialog_iemocap.pkl')
+    emo_dict = joblib.load('./data/emo_all_iemocap.pkl')
+    dialogs = joblib.load('./data/dialog_iemocap.pkl')
+    out_dict = joblib.load('./data/outputs.pkl')
+    print(out_dict)
     X = [] #observed utterance
     Y = [] #observed emotion(only record ang, hap, neu, sad)
     W = [] #weight will be trained, 24 dims. Initialize 0 for each dim
