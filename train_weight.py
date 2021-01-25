@@ -112,7 +112,7 @@ class CRF_SGD:
         N_py2 = out_dict[utt2][emo_index_dict[y2]]
 
         W_py1 = self.W_old['p_'+y1]
-        W_py1 = self.W_old['p_'+y2]
+        W_py2 = self.W_old['p_'+y2]
 
         return math.exp(W_y1y2 + N_py1*W_py1 + N_py2*W_py2)
     
@@ -134,7 +134,6 @@ class CRF_SGD:
         self.rand_pick_list_index += 1
         
     def gradient(self):
-        Start_emo_com = [('Start','ang'),('Start','hap'),('Start','neu'),('Start','sad')]
         emo_com = itertools.product(['ang', 'hap', 'neu', 'sad'], repeat = 2)   
         grad_W = self.W
         T = len(self.X_batch)
@@ -200,7 +199,7 @@ if __name__ == "__main__":
     out_dict = joblib.load('./data/outputs.pkl')
 
     trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
-
+    
     # pre-trained calssifier中增加4項，以logits計算
     out_dict['Start2a'] = math.log(trans_prob['Start2a']/(1-trans_prob['Start2a']), 2)
     out_dict['Start2h'] = math.log(trans_prob['Start2h']/(1-trans_prob['Start2h']), 2)
@@ -231,14 +230,14 @@ if __name__ == "__main__":
                 X.append(utt)
                 Y.append(emo_dict[utt])
     
-    learning_rate = 0.001
+    learning_rate = 0.0001
     CRF_model = CRF_SGD(W, X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
     
-    for i in range(1, 1001, 1):
+    for i in range(1, 5001, 1):
         print(i)
         CRF_model.update()
-    print(W)
+    print(CRF_model.W)
     file=open('weight.pickle','wb')
-    pickle.dump(W, file)
+    pickle.dump(CRF_model.W, file)
     file.close()
     
