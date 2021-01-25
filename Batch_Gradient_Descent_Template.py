@@ -69,7 +69,8 @@ if __name__ == "__main__":
     b = -10
     alpha = 0.05
     batch_size = 5
-    #mlclass = my_MBGD(a, b, x, y, alpha, batch_size)
-
-    emo_dict = joblib.load('emo_all_iemocap.pkl')
-    dialogs = joblib.load('dialog_iemocap.pkl')
+    mlclass = my_MBGD(a, b, x, y, alpha, batch_size)
+    
+    # 開始迭代
+    for i in range(1, 11):
+        mlclass.update()
