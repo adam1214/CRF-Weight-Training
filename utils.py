@@ -1,4 +1,23 @@
 import joblib
+from sklearn.metrics import confusion_matrix, recall_score, accuracy_score
+import numpy as np
+
+def convert_to_index(emotion):
+  """convert emotion to index """
+  map_emo = {'ang':0, 'hap':1, 'neu':2, 'sad':3}
+  if emotion in map_emo.keys():
+    return map_emo[emotion]
+  else:
+    return -1
+
+def evaluate(predict, label): #uar, acc, conf = utils.evaluate(predict, label)
+  # Only evaluate utterances labeled in defined 4 emotion states
+  label, predict = np.array(label), np.array(predict)
+  index = [label != -1]
+  label, predict = label[index], predict[index]
+
+  return recall_score(label, predict, average='macro'), accuracy_score(label, predict), confusion_matrix(label, predict)
+
 def emo_trans_prob_BI_without_softmax(emo_dict, dialogs, val=None):
     # only estimate anger, happiness, neutral, sadness
     Start2a = 0

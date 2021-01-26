@@ -230,10 +230,10 @@ if __name__ == "__main__":
                 X.append(utt)
                 Y.append(emo_dict[utt])
     
-    learning_rate = 0.0001
+    learning_rate = 0.00001
     CRF_model = CRF_SGD(W, X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
     
-    for i in range(1, 5001, 1):
+    for i in range(1, 1001, 1):
         print(i)
         CRF_model.update()
         #print(CRF_model.W_old['h2h'],CRF_model.W['h2h'])
