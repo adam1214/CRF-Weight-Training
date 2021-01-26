@@ -11,7 +11,7 @@ np.random.seed(1)
 class CRF_SGD:
     def __init__(self, W, X, Y, trans_prob, learning_rate):
         self.W = W
-        self.W_old = W
+        self.W_old = {}
         self.X = X
         self.Y = Y
         self.trans_prob = trans_prob
@@ -135,10 +135,10 @@ class CRF_SGD:
         
     def gradient(self):
         emo_com = itertools.product(['ang', 'hap', 'neu', 'sad'], repeat = 2)   
-        grad_W = self.W
+        grad_W = {}
         T = len(self.X_batch)
         Z = self.forward_alpha(T+2, 'End')
-        for weight_name in grad_W:
+        for weight_name in self.W:
             N_e1e2 = 0
             e1 = emo_mapping_dict1[weight_name[0]] #ang, hap, neu, sad, Start, pre-trained
             e2 = emo_mapping_dict1[weight_name[-1]] #ang, hap, neu, sad, End
@@ -236,7 +236,8 @@ if __name__ == "__main__":
     for i in range(1, 5001, 1):
         print(i)
         CRF_model.update()
-    print(CRF_model.W)
+        #print(CRF_model.W_old['h2h'],CRF_model.W['h2h'])
+    # print(CRF_model.W)
     file=open('weight.pickle','wb')
     pickle.dump(CRF_model.W, file)
     file.close()
