@@ -12,6 +12,8 @@ class CRF_SGD:
     def __init__(self, W, X, Y, trans_prob, learning_rate):
         self.W = W
         self.W_old = {}
+        for weight_name in self.W:
+            self.W_old[weight_name] = 0
         self.X = X
         self.Y = Y
         self.trans_prob = trans_prob
@@ -135,6 +137,7 @@ class CRF_SGD:
         
     def gradient(self):
         emo_com = itertools.product(['ang', 'hap', 'neu', 'sad'], repeat = 2)   
+        emo_com_list = [item for item in emo_com] 
         grad_W = {}
         T = len(self.X_batch)
         Z = self.forward_alpha(T+2, 'End')
@@ -163,20 +166,20 @@ class CRF_SGD:
                 #print(e1, e2, N_e1e2)
             
             sum_alpha_beta = 0
-            for t in range(1,T,1):
+            for t in range(1,T+1,1):
                 if t == 1:
                     # alpha == 0
                     sum_alpha_beta += 0    
                 else:
-                    for com_item in emo_com:
+                    for j in range(0, len(emo_com_list), 1):
                         if e1 != 'pre-trained':
-                            if com_item[0] == e1 and com_item[1] == e2: # N = 1
-                                sum_alpha_beta = sum_alpha_beta + self.forward_alpha(t, com_item[0]) *  self.G_t(com_item[0], com_item[1], t) * self.backward_beta(t, T, com_item[1])
+                            if emo_com_list[j][0] == e1 and emo_com_list[j][1] == e2: # N = 1
+                                sum_alpha_beta = sum_alpha_beta + self.forward_alpha(t, emo_com_list[j][0]) *  self.G_t(emo_com_list[j][0], emo_com_list[j][1], t) * self.backward_beta(t, T, emo_com_list[j][1])
                             else: # N = 0
                                 sum_alpha_beta += 0
                         else:
-                            N = out_dict[self.X_batch[t-2]][emo_index_dict[com_item[0]]] + out_dict[self.X_batch[t-1]][emo_index_dict[com_item[1]]]
-                            sum_alpha_beta = sum_alpha_beta + self.forward_alpha(t, com_item[0]) *  N * self.G_t(com_item[0], com_item[1], t) * self.backward_beta(t, T, com_item[1])
+                            N = out_dict[self.X_batch[t-2]][emo_index_dict[emo_com_list[j][0]]] + out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_list[j][1]]]
+                            sum_alpha_beta = sum_alpha_beta + self.forward_alpha(t, emo_com_list[j][0]) *  N * self.G_t(emo_com_list[j][0], emo_com_list[j][1], t) * self.backward_beta(t, T, emo_com_list[j][1])
             grad_W[weight_name] = N_e1e2 - (sum_alpha_beta/Z)
         self.update_batch()
         return grad_W
@@ -234,7 +237,7 @@ if __name__ == "__main__":
     CRF_model = CRF_SGD(W, X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
     
     for i in range(1, 1001, 1):
-        print(i)
+        print('training iteration = '+str(i)+'/1000')
         CRF_model.update()
         #print(CRF_model.W_old['h2h'],CRF_model.W['h2h'])
     # print(CRF_model.W)
