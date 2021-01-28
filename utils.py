@@ -175,9 +175,10 @@ def emo_trans_prob_BI_without_softmax(emo_dict, dialogs, val=None):
             'a2End':a2End/End2, 'h2End':h2End/End2, 'n2End':n2End/End2, 's2End':s2End/End2 }
 
 if __name__ == "__main__":
-    
+    pass
+    '''
     emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     trans_prob = emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
-    
+    '''
     
