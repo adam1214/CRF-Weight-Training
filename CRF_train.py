@@ -35,7 +35,7 @@ class CRF_SGD:
         #alpha為第0秒到第(t-1)秒的第y1個情緒之所有可能路徑機率和
         t -= 1
         if t == 0:
-            return 0
+            return math.exp(0)
         else:
             Q = [([0]*4) for i in range(t)] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
         
@@ -103,6 +103,18 @@ class CRF_SGD:
         #print(Q)
         return alpha
 
+    def create_alpha_lookup_dict(self, T):
+        alpha_lookup_dict = {}
+        for t in range(1, T+1, 1):
+            if t == 1:
+                alpha_lookup_dict[t] = {'Start':self.forward_alpha(t, 'Start')}
+            else:
+                alpha_lookup_dict[t] = {'ang':self.forward_alpha(t, 'ang'), \
+                                        'hap':self.forward_alpha(t, 'hap'), \
+                                        'neu':self.forward_alpha(t, 'neu'), \
+                                        'sad':self.forward_alpha(t, 'sad')  }
+        return alpha_lookup_dict
+    
     def backward_beta(self, t, T, y2):
         #beta為第t秒的第y2個情緒到第(T+1)秒之所有可能路徑機率和
         T += 1
@@ -153,25 +165,54 @@ class CRF_SGD:
                Q[T-t-2][3]*math.exp(self.trans_prob['s2End']*self.W_old['s2End'])
         return beta
     
+    def create_beta_lookup_dict(self, T):
+        beta_lookup_dict = {}
+        for t in range(1, T+1, 1):
+            beta_lookup_dict[t] = {'ang':self.backward_beta(t, T, 'ang'), \
+                                   'hap':self.backward_beta(t, T, 'hap'), \
+                                   'neu':self.backward_beta(t, T, 'neu'), \
+                                   'sad':self.backward_beta(t, T, 'sad')  }
+        return beta_lookup_dict
+
     def G_t(self, y1, y2, t): #exp{ W_y1y2 + N_py1*W_py1 + N_py2*W_py2 }
         y1 = emo_mapping_dict2[y1]
         y2 = emo_mapping_dict2[y2]
 
         W_y1y2 = self.W_old[y1+'2'+y2]
         if t == 1:
-            utt1 = 'Start2' + y1
+            utt1 = 'Start2' + y2
+            N_py1 = out_dict[utt1]
+            W_py1 = 0
+            W_py2 = 0
         else:
             utt1 = self.X_batch[t-2]
-        utt2 = self.X_batch[t-1]
+            N_py1 = out_dict[utt1][emo_index_dict[y1]]
+            W_py1 = self.W_old['p_'+y1]
+            W_py2 = self.W_old['p_'+y2]
         
-        N_py1 = out_dict[utt1][emo_index_dict[y1]]
+        utt2 = self.X_batch[t-1]
         N_py2 = out_dict[utt2][emo_index_dict[y2]]
 
-        W_py1 = self.W_old['p_'+y1]
-        W_py2 = self.W_old['p_'+y2]
-
         return math.exp(W_y1y2 + N_py1*W_py1 + N_py2*W_py2)
-    
+
+    def nested_dict(self, dic, keys, value):
+        for key in keys[:-1]:
+            dic = dic.setdefault(key, {})
+        dic[keys[-1]] = value
+
+    def create_G_t_lookup_dict(self, T, emo_com_list):
+        G_t_lookup_dict = {}
+        for t in range(1, T+1, 1):
+            if t == 1:
+                self.nested_dict(G_t_lookup_dict, [t, ('Start', 'ang')], self.G_t('Start', 'ang', t))
+                self.nested_dict(G_t_lookup_dict, [t, ('Start', 'hap')], self.G_t('Start', 'hap', t))
+                self.nested_dict(G_t_lookup_dict, [t, ('Start', 'neu')], self.G_t('Start', 'neu', t))
+                self.nested_dict(G_t_lookup_dict, [t, ('Start', 'sad')], self.G_t('Start', 'sad', t))
+            else:
+                for e_com in emo_com_list:
+                    self.nested_dict(G_t_lookup_dict, [t, e_com], self.G_t(e_com[0], e_com[1], t))
+        return G_t_lookup_dict
+
     def update_batch(self): # 更新批次
         #每次更新時，採滾動的方式依次取出 N 筆資料
         #print(self.rand_pick_list[self.rand_pick_list_index])
@@ -192,6 +233,7 @@ class CRF_SGD:
     def gradient(self):
         emo_com = itertools.product(['ang', 'hap', 'neu', 'sad'], repeat = 2)   
         emo_com_list = [item for item in emo_com] 
+        Start_emo_com_list = [('Start', 'ang'), ('Start', 'hap'), ('Start', 'neu'), ('Start', 'sad')]
         grad_W = {}
         T = len(self.X_batch)
         Z = self.forward_alpha(T+2, 'End')
@@ -219,21 +261,25 @@ class CRF_SGD:
                     N_e1e2 += 1
                 #print(e1, e2, N_e1e2)
             
+            alpha_lookup_dict = self.create_alpha_lookup_dict(T)
+            beta_lookup_dict = self.create_beta_lookup_dict(T)
+            G_t_lookup_dict = self.create_G_t_lookup_dict(T, emo_com_list)
             sum_alpha_beta = 0
             for t in range(1,T+1,1):
                 if t == 1:
-                    # alpha == 0
-                    sum_alpha_beta += 0    
+                    tmp_emo_com_list = Start_emo_com_list
                 else:
-                    for j in range(0, len(emo_com_list), 1):
-                        if e1 != 'pre-trained':
-                            if emo_com_list[j][0] == e1 and emo_com_list[j][1] == e2: # N == 1
-                                sum_alpha_beta = sum_alpha_beta + self.forward_alpha(t, emo_com_list[j][0]) * self.G_t(emo_com_list[j][0], emo_com_list[j][1], t) * self.backward_beta(t, T, emo_com_list[j][1])
-                            else: # N == 0
-                                sum_alpha_beta += 0
-                        else:
-                            N = out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_list[j][1]]]
-                            sum_alpha_beta = sum_alpha_beta + self.forward_alpha(t, emo_com_list[j][0]) * N * self.G_t(emo_com_list[j][0], emo_com_list[j][1], t) * self.backward_beta(t, T, emo_com_list[j][1])
+                    tmp_emo_com_list = emo_com_list
+                for emo_com_item in tmp_emo_com_list:
+                    if e1 != 'pre-trained':
+                        if emo_com_item[0] == e1 and emo_com_item[1] == e2:
+                            N = trans_prob['Start2'+emo_mapping_dict2[e2]] # N == transition prob.
+                            sum_alpha_beta = sum_alpha_beta + alpha_lookup_dict[t][emo_com_item[0]] * G_t_lookup_dict[t][emo_com_item] * beta_lookup_dict[t][emo_com_item[1]]
+                        else: # N == 0
+                            sum_alpha_beta += 0
+                    else:
+                        N = out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_item[1]]] # N == emission prob.
+                        sum_alpha_beta = sum_alpha_beta + alpha_lookup_dict[t][emo_com_item[0]] * N * G_t_lookup_dict[t][emo_com_item] * beta_lookup_dict[t][emo_com_item[1]]
             grad_W[weight_name] = N_e1e2 - (sum_alpha_beta/Z)
         self.update_batch()
         return grad_W
@@ -263,7 +309,7 @@ def test_acc(Weight):
 
 if __name__ == "__main__":
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
-    emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'S', 'End':'E', 'pre-trained':'p'}
+    emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'E', 'pre-trained':'p'}
     emo_index_dict = {'a':0, 'h':1, 'n':2, 's':3, 'ang':0, 'hap':1, 'neu':2, 'sad':3}
     emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
