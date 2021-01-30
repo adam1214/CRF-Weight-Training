@@ -174,7 +174,7 @@ class CRF_SGD:
                                    'sad':self.backward_beta(t, T, 'sad')  }
         return beta_lookup_dict
 
-    def G_t(self, y1, y2, t): #exp{ W_y1y2 + N_py1*W_py1 + N_py2*W_py2 }
+    def G_t(self, y1, y2, t): #exp{ W_y1y2*N_y1y2 + N_py1*W_py1 + N_py2*W_py2 }
         y1 = emo_mapping_dict2[y1]
         y2 = emo_mapping_dict2[y2]
 
@@ -192,7 +192,9 @@ class CRF_SGD:
         utt2 = self.X_batch[t-1]
         N_py2 = out_dict[utt2][emo_index_dict[y2]]
 
-        return math.exp(W_y1y2 + N_py1*W_py1 + N_py2*W_py2)
+        N_y1y2 = trans_prob[y1+'2'+y2]
+
+        return math.exp(W_y1y2*N_y1y2 + N_py1*W_py1 + N_py2*W_py2)
 
     def nested_dict(self, dic, keys, value):
         for key in keys[:-1]:
@@ -258,6 +260,7 @@ class CRF_SGD:
                 current_emo = 'End'
                 if pre_emo == e1 and current_emo == e2:
                     N_e1e2 += 1
+                N_e1e2 = N_e1e2 * trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]]
                 #print(e1, e2, N_e1e2)
             
             alpha_lookup_dict = self.create_alpha_lookup_dict(T)
@@ -303,7 +306,7 @@ def test_acc(Weight):
 
 if __name__ == "__main__":
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
-    emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'E', 'pre-trained':'p'}
+    emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
     emo_index_dict = {'a':0, 'h':1, 'n':2, 's':3, 'ang':0, 'hap':1, 'neu':2, 'sad':3}
     emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
