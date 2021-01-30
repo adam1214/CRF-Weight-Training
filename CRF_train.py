@@ -1,9 +1,11 @@
 import numpy as np
 import joblib
-import utils
 import math
 import itertools
 import pickle
+
+import utils
+import CRF_test
 
 # 給定隨機種子，使每次執行結果保持一致
 np.random.seed(1)
@@ -244,7 +246,21 @@ class CRF_SGD:
             self.W_old[weight_name] = self.W[weight_name]
             self.W[weight_name] = self.W[weight_name] + self.learning_rate*grad_W[weight_name]
 
-    
+def test_acc(Weight):
+    emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
+    predict = []
+    label = []
+    for i, dia in enumerate(dialogs):
+        #print("Decoding dialog: {}/{}, {}".format(i+1,len(dialogs),dia))
+        #print(dia)
+        #print(len(dialogs[dia]))
+        label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
+        predict += CRF_test.viterbi(Weight, dialogs[dia], trans_prob, out_dict)
+            
+    uar, acc, conf = utils.evaluate(predict, label)
+    print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
+    #print('Confusion matrix:\n%s' % conf)
+
 if __name__ == "__main__":
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'S', 'End':'E', 'pre-trained':'p'}
@@ -290,14 +306,14 @@ if __name__ == "__main__":
                 X.append(utt)
                 Y.append(emo_dict[utt])
     
-    learning_rate = 0.00001
-    CRF_model = CRF_SGD(W, X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
-    
+    learning_rate = 0.0001
+    CRF_model = CRF_SGD(W.copy(), X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
+
     for i in range(1, 1001, 1):
         print('training iteration : '+str(i)+'/1000')
         CRF_model.update()
-        #print(CRF_model.W_old['h2h'],CRF_model.W['h2h'])
-    # print(CRF_model.W)
+        test_acc(CRF_model.W)
+
     file=open('weight.pickle','wb')
     pickle.dump(CRF_model.W, file)
     file.close()

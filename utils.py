@@ -14,7 +14,7 @@ def evaluate(predict, label): #uar, acc, conf = utils.evaluate(predict, label)
   # Only evaluate utterances labeled in defined 4 emotion states
   label, predict = np.array(label), np.array(predict)
   index = [label != -1]
-  label, predict = label[index], predict[index]
+  label, predict = label[tuple(index)], predict[tuple(index)]
 
   return recall_score(label, predict, average='macro'), accuracy_score(label, predict), confusion_matrix(label, predict)
 
@@ -175,10 +175,7 @@ def emo_trans_prob_BI_without_softmax(emo_dict, dialogs, val=None):
             'a2End':a2End/End2, 'h2End':h2End/End2, 'n2End':n2End/End2, 's2End':s2End/End2 }
 
 if __name__ == "__main__":
-    pass
-    '''
     emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     trans_prob = emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
-    '''
     

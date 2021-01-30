@@ -3,7 +3,7 @@ import joblib
 import utils
 import math
 
-def viterbi(Weight, dialogs):
+def viterbi(Weight, dialogs, trans_prob, out_dict):
     emo_list = ['a', 'h', 'n', 's']
     predict = []
     Q = [([0]*4) for i in range(len(dialogs))] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
@@ -52,11 +52,8 @@ if __name__ == "__main__":
         #print(dia)
         #print(len(dialogs[dia]))
         label += [utils.convert_to_index(emo_dict[utt]) for utt in dialogs[dia]]
-        predict += viterbi(Weight, dialogs[dia])
-            
-        
-    
+        predict += viterbi(Weight, dialogs[dia], trans_prob, out_dict)
+
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
     print('Confusion matrix:\n%s' % conf)
-    
