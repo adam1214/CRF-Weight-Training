@@ -181,14 +181,13 @@ class CRF_SGD:
         W_y1y2 = self.W_old[y1+'2'+y2]
         if t == 1:
             utt1 = 'Start2' + y2
-            N_py1 = out_dict[utt1]
+            N_py1 = 0
             W_py1 = 0
-            W_py2 = 0
         else:
             utt1 = self.X_batch[t-2]
             N_py1 = out_dict[utt1][emo_index_dict[y1]]
             W_py1 = self.W_old['p_'+y1]
-            W_py2 = self.W_old['p_'+y2]
+        W_py2 = self.W_old['p_'+y2]
         
         utt2 = self.X_batch[t-1]
         N_py2 = out_dict[utt2][emo_index_dict[y2]]
@@ -295,12 +294,7 @@ class CRF_SGD:
 def test_acc(Weight):
     emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     predict = []
-    label = []
     for i, dia in enumerate(dialogs):
-        #print("Decoding dialog: {}/{}, {}".format(i+1,len(dialogs),dia))
-        #print(dia)
-        #print(len(dialogs[dia]))
-        label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
         predict += CRF_test.viterbi(Weight, dialogs[dia], trans_prob, out_dict)
             
     uar, acc, conf = utils.evaluate(predict, label)
@@ -316,7 +310,7 @@ if __name__ == "__main__":
     out_dict = joblib.load('./data/outputs.pkl')
 
     trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
-    
+    '''
     # pre-trained calssifier中增加8項，以logits計算
     out_dict['Start2a'] = math.log(trans_prob['Start2a']/(1-trans_prob['Start2a']), math.e)
     out_dict['Start2h'] = math.log(trans_prob['Start2h']/(1-trans_prob['Start2h']), math.e)
@@ -327,11 +321,8 @@ if __name__ == "__main__":
     out_dict['h2End'] = 10000
     out_dict['n2End'] = 10000
     out_dict['s2End'] = 10000
-    
-    # emo_dict = joblib.load('./data/emo_all_iemocap.pkl')
+    '''
 
-    
-    # print(out_dict)
     X = [] #observed utterance
     Y = [] #observed emotion(only record ang, hap, neu, sad)
 
@@ -355,8 +346,13 @@ if __name__ == "__main__":
     learning_rate = 0.0001
     CRF_model = CRF_SGD(W.copy(), X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
 
-    for i in range(1, 1001, 1):
-        print('training iteration : '+str(i)+'/1000')
+    emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
+    label = []
+    for i, dia in enumerate(dialogs):
+        label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
+
+    for i in range(1, 2001, 1):
+        print('training iteration : '+str(i)+'/2000')
         CRF_model.update()
         test_acc(CRF_model.W)
 
