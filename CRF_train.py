@@ -11,14 +11,16 @@ import CRF_test
 np.random.seed(1)
 
 class CRF_SGD:
-    def __init__(self, W, X, Y, trans_prob, learning_rate):
+    def __init__(self, W, X, Y, trans_prob, out_dict, learning_rate):
         self.W = W
+        self.W_np = np.zeros((28))
         self.W_old = {}
         for weight_name in self.W:
             self.W_old[weight_name] = 0
         self.X = X
         self.Y = Y
         self.trans_prob = trans_prob
+        self.out_dict = out_dict
         self.learning_rate = learning_rate
         
         # 使用 np.random.permutation 給定資料取出順序
@@ -41,60 +43,59 @@ class CRF_SGD:
         
         utt = self.X_batch[0]
         # 第一個時間點 (transition prob. * weight + emission prob. * weight) => (f_j*w_j)
-        Q[0][0] = math.exp(self.trans_prob['Start2a']*self.W_old['Start2a'] + out_dict[utt][0]*self.W_old['p_a'])
-        Q[0][1] = math.exp(self.trans_prob['Start2h']*self.W_old['Start2h'] + out_dict[utt][1]*self.W_old['p_h'])
-        Q[0][2] = math.exp(self.trans_prob['Start2n']*self.W_old['Start2n'] + out_dict[utt][2]*self.W_old['p_n'])
-        Q[0][3] = math.exp(self.trans_prob['Start2s']*self.W_old['Start2s'] + out_dict[utt][3]*self.W_old['p_s'])
+        Q[0][0] = math.exp(self.trans_prob['Start2a']*self.W_old['Start2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
+        Q[0][1] = math.exp(self.trans_prob['Start2h']*self.W_old['Start2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
+        Q[0][2] = math.exp(self.trans_prob['Start2n']*self.W_old['Start2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
+        Q[0][3] = math.exp(self.trans_prob['Start2s']*self.W_old['Start2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
 
         for i in range(1, t - 1, 1):
             utt = self.X_batch[i]
             for j in range(0, 4, 1):
                 if j == 0:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + out_dict[utt][0]*self.W_old['p_a'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
                 elif j == 1:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + out_dict[utt][1]*self.W_old['p_h'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
                 elif j == 2:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + out_dict[utt][2]*self.W_old['p_n'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
                 elif j == 3:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + out_dict[utt][3]*self.W_old['p_s'])
-        
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
         
         if y1 == 'ang':
             utt = self.X_batch[t-1]
-            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                    Q[t-2][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                    Q[t-2][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                    Q[t-2][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + out_dict[utt][0]*self.W_old['p_a'])
+            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                    Q[t-2][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                    Q[t-2][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                    Q[t-2][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
         elif y1 == 'hap':
             utt = self.X_batch[t-1]
-            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                    Q[t-2][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                    Q[t-2][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                    Q[t-2][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + out_dict[utt][1]*self.W_old['p_h'])
+            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                    Q[t-2][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                    Q[t-2][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                    Q[t-2][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
         elif y1 == 'neu':
             utt = self.X_batch[t-1]
-            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                    Q[t-2][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                    Q[t-2][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                    Q[t-2][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + out_dict[utt][2]*self.W_old['p_n'])
+            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                    Q[t-2][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                    Q[t-2][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                    Q[t-2][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
         elif y1 == 'sad':
             utt = self.X_batch[t-1]
-            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                    Q[t-2][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                    Q[t-2][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                    Q[t-2][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + out_dict[utt][3]*self.W_old['p_s'])
+            alpha = Q[t-2][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                    Q[t-2][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                    Q[t-2][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                    Q[t-2][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
         elif y1 == 'End': # estimate Z(T)
             alpha = Q[t-2][0]*math.exp(self.trans_prob['a2End']*self.W_old['a2End']) + \
                     Q[t-2][1]*math.exp(self.trans_prob['h2End']*self.W_old['h2End']) + \
@@ -130,34 +131,34 @@ class CRF_SGD:
             key = 'n'
         elif y2 == 'sad':
             key = 's'
-        Q[0][0] = math.exp(self.trans_prob[key+'2a']*self.W_old[key+'2a'] + out_dict[utt][0]*self.W_old['p_a'])
-        Q[0][1] = math.exp(self.trans_prob[key+'2h']*self.W_old[key+'2h'] + out_dict[utt][1]*self.W_old['p_h'])
-        Q[0][2] = math.exp(self.trans_prob[key+'2n']*self.W_old[key+'2n'] + out_dict[utt][2]*self.W_old['p_n'])
-        Q[0][3] = math.exp(self.trans_prob[key+'2s']*self.W_old[key+'2s'] + out_dict[utt][3]*self.W_old['p_s'])
+        Q[0][0] = math.exp(self.trans_prob[key+'2a']*self.W_old[key+'2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
+        Q[0][1] = math.exp(self.trans_prob[key+'2h']*self.W_old[key+'2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
+        Q[0][2] = math.exp(self.trans_prob[key+'2n']*self.W_old[key+'2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
+        Q[0][3] = math.exp(self.trans_prob[key+'2s']*self.W_old[key+'2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
 
         for i in range(1, T - t - 1, 1):
             utt = self.X_batch[t-1+i]
             for j in range(0, 4, 1):
                 if j == 0:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + out_dict[utt][0]*self.W_old['p_a']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + out_dict[utt][0]*self.W_old['p_a'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
                 elif j == 1:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + out_dict[utt][1]*self.W_old['p_h']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + out_dict[utt][1]*self.W_old['p_h'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
                 elif j == 2:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + out_dict[utt][2]*self.W_old['p_n']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + out_dict[utt][2]*self.W_old['p_n'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
                 elif j == 3:
-                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                              Q[i-1][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                              Q[i-1][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + out_dict[utt][3]*self.W_old['p_s']) + \
-                              Q[i-1][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + out_dict[utt][3]*self.W_old['p_s'])
+                    Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                              Q[i-1][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                              Q[i-1][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
+                              Q[i-1][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
         #print(Q)
         beta = Q[T-t-2][0]*math.exp(self.trans_prob['a2End']*self.W_old['a2End']) + \
                Q[T-t-2][1]*math.exp(self.trans_prob['h2End']*self.W_old['h2End']) + \
@@ -174,27 +175,27 @@ class CRF_SGD:
                                    'sad':self.backward_beta(t, T, 'sad')  }
         return beta_lookup_dict
 
-    def G_t(self, y1, y2, t): #exp{ W_y1y2*N_y1y2 + N_py1*W_py1 + N_py2*W_py2 }
-        y1 = emo_mapping_dict2[y1]
-        y2 = emo_mapping_dict2[y2]
+    def G_t(self, y1, y2, t): #exp{ N_y1y2*W_y1y2 + N_py1*W_py1 + N_py2*W_py2 }
+        y1 = emo_mapping_dict2[y1] #Start, a, h, n, s
+        y2 = emo_mapping_dict2[y2] #a, h, n, s
 
+        N_y1y2 = trans_prob[y1+'2'+y2]
         W_y1y2 = self.W_old[y1+'2'+y2]
+
         if t == 1:
             utt1 = 'Start2' + y2
             N_py1 = 0
             W_py1 = 0
         else:
             utt1 = self.X_batch[t-2]
-            N_py1 = out_dict[utt1][emo_index_dict[y1]]
+            N_py1 = self.out_dict[utt1][emo_index_dict[y1]]
             W_py1 = self.W_old['p_'+y1]
-        W_py2 = self.W_old['p_'+y2]
         
         utt2 = self.X_batch[t-1]
-        N_py2 = out_dict[utt2][emo_index_dict[y2]]
-
-        N_y1y2 = trans_prob[y1+'2'+y2]
-
-        return math.exp(W_y1y2*N_y1y2 + N_py1*W_py1 + N_py2*W_py2)
+        N_py2 = self.out_dict[utt2][emo_index_dict[y2]]
+        W_py2 = self.W_old['p_'+y2]
+        
+        return math.exp(N_y1y2*W_y1y2 + N_py1*W_py1 + N_py2*W_py2)
 
     def nested_dict(self, dic, keys, value):
         for key in keys[:-1]:
@@ -235,73 +236,95 @@ class CRF_SGD:
         emo_com = itertools.product(['ang', 'hap', 'neu', 'sad'], repeat = 2)   
         emo_com_list = [item for item in emo_com] 
         Start_emo_com_list = [('Start', 'ang'), ('Start', 'hap'), ('Start', 'neu'), ('Start', 'sad')]
-        grad_W = {}
         T = len(self.X_batch)
         Z = self.forward_alpha(T+2, 'End')
+
+        N_e1e2 = np.zeros((28))
+        N_internal = np.zeros((T,16,28)) # [combination][feature][time]
+        j = 0
         for weight_name in self.W:
-            N_e1e2 = 0
             e1 = emo_mapping_dict1[weight_name[0]] #ang, hap, neu, sad, Start, pre-trained
             e2 = emo_mapping_dict1[weight_name[-1]] #ang, hap, neu, sad, End
-            if e1 == 'pre-trained':
+            if e1 == 'pre-trained': # part2 weight feature(N) extraction
                 # ex:e2為ang，將batch data中label為ang的utt在pre-trained classifier中的值相加
                 for utt in self.X_batch: 
                     if e2 == emo_dict[utt]:
-                        N_e1e2 = N_e1e2 + out_dict[utt][emo_index_dict[weight_name[-1]]]
-                #print(e1, e2, N_e1e2)
-            else:
+                        N_e1e2[j] = N_e1e2[j] + self.out_dict[utt][emo_index_dict[weight_name[-1]]]
+            else: # part1 weight feature(N) extraction
                 pre_emo = 'Start'
                 current_emo = ''
                 for utt in self.X_batch:
                     #print(utt, emo_dict[utt])
                     current_emo = emo_dict[utt]
                     if pre_emo == e1 and current_emo == e2:
-                        N_e1e2 += 1
+                        N_e1e2[j] += 1
                     pre_emo = current_emo
                 current_emo = 'End'
                 if pre_emo == e1 and current_emo == e2:
-                    N_e1e2 += 1
-                N_e1e2 = N_e1e2 * trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]]
-                #print(e1, e2, N_e1e2)
+                    N_e1e2[j] += 1
+                N_e1e2[j] = N_e1e2[j] * self.trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]]
             
-            alpha_lookup_dict = self.create_alpha_lookup_dict(T)
-            beta_lookup_dict = self.create_beta_lookup_dict(T)
-            G_t_lookup_dict = self.create_G_t_lookup_dict(T, emo_com_list)
-            sum_alpha_beta = 0
             for t in range(1,T+1,1):
+                c = 0
                 if t == 1:
-                    tmp_emo_com_list = Start_emo_com_list
+                    tmp_emo_com_list = Start_emo_com_list #len is 4 (c = 0~3)
                 else:
-                    tmp_emo_com_list = emo_com_list
+                    tmp_emo_com_list = emo_com_list #len is 16 (c = 0~15)
+
                 for emo_com_item in tmp_emo_com_list:
-                    if e1 != 'pre-trained':
+                    if e1 != 'pre-trained': #part 2:relation between emos (internal feature extraction)
                         if emo_com_item[0] == e1 and emo_com_item[1] == e2:
-                            N = trans_prob['Start2'+emo_mapping_dict2[e2]] # N == transition prob.
-                            sum_alpha_beta = sum_alpha_beta + alpha_lookup_dict[t][emo_com_item[0]] * G_t_lookup_dict[t][emo_com_item] * beta_lookup_dict[t][emo_com_item[1]]
-                        else: # N == 0
-                            sum_alpha_beta += 0
-                    else:
-                        N = out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_item[1]]] # N == emission prob.
-                        sum_alpha_beta = sum_alpha_beta + alpha_lookup_dict[t][emo_com_item[0]] * N * G_t_lookup_dict[t][emo_com_item] * beta_lookup_dict[t][emo_com_item[1]]
-            grad_W[weight_name] = N_e1e2 - (sum_alpha_beta/Z)
+                            N_internal[t-1][c][j] = self.trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]] # transition prob.
+                        else:
+                            N_internal[t-1][c][j] = 0 # transition prob. == 0
+                    else: #part 1:relation between pre-trained & emos (internal feature extraction)
+                        N_internal[t-1][c][j] = self.out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_item[1]]] # emission prob.
+                    c += 1
+            j += 1
+        
+        alpha_lookup_dict = self.create_alpha_lookup_dict(T)
+        beta_lookup_dict = self.create_beta_lookup_dict(T)
+        G_t_lookup_dict = self.create_G_t_lookup_dict(T, emo_com_list)
+        sum_alpha_beta_np = np.zeros((28))
+
+        for t in range(1,T+1,1):
+            c = 0
+            if t == 1:
+                tmp_emo_com_list = Start_emo_com_list
+            else:
+                tmp_emo_com_list = emo_com_list
+
+            for emo_com_item in tmp_emo_com_list:
+                sum_alpha_beta_np = sum_alpha_beta_np + alpha_lookup_dict[t][emo_com_item[0]] * N_internal[t-1][c] * G_t_lookup_dict[t][emo_com_item] * beta_lookup_dict[t][emo_com_item[1]]
+                c += 1
+
+        sum_alpha_beta_np = sum_alpha_beta_np / Z
+        grad_W_np = N_e1e2 - sum_alpha_beta_np
+
         self.update_batch()
-        return grad_W
+        return grad_W_np
 
     def update(self):
         # 計算梯度
-        grad_W = self.gradient()
-        
+        grad_W_np = self.gradient()
+        self.W_np = np.array(list(self.W.values()))
+
+        self.W_np = self.W_np + self.learning_rate * grad_W_np
+
+        j = 0
         for weight_name in self.W:
             self.W_old[weight_name] = self.W[weight_name]
-            self.W[weight_name] = self.W[weight_name] + self.learning_rate*grad_W[weight_name]
-
+            self.W[weight_name] = self.W_np[j]
+            j += 1
+        
 def test_acc(Weight):
-    emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     predict = []
     for i, dia in enumerate(dialogs):
         predict += CRF_test.viterbi(Weight, dialogs[dia], trans_prob, out_dict)
             
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
+    print(conf)
     #print('Confusion matrix:\n%s' % conf)
 
 if __name__ == "__main__":
@@ -345,17 +368,17 @@ if __name__ == "__main__":
             if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
                 X.append(utt)
                 Y.append(emo_dict[utt])
-    
-    learning_rate = 0.0001
-    CRF_model = CRF_SGD(W.copy(), X, Y, trans_prob,learning_rate) # 類別 CRF_SGD 初始化
+
+    learning_rate = 0.00001
+    CRF_model = CRF_SGD(W.copy(), X, Y, trans_prob, out_dict, learning_rate) # 類別 CRF_SGD 初始化
 
     emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     label = []
     for i, dia in enumerate(dialogs):
         label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
 
-    for i in range(1, 2001, 1):
-        print('training iteration : '+str(i)+'/2000')
+    for i in range(1, 201, 1):
+        print('training iteration : '+str(i)+'/200')
         CRF_model.update()
         test_acc(CRF_model.W)
 
