@@ -222,13 +222,13 @@ class CRF_SGD:
         #每次更新時，採滾動的方式依次取出 N 筆資料
         #print(self.rand_pick_list[self.rand_pick_list_index])
         #print(self.X[self.rand_pick_list[self.rand_pick_list_index]])
-        for i in range(self.rand_pick_list[self.rand_pick_list_index] - 1, 0, -1):
-            if self.X[self.rand_pick_list[self.rand_pick_list_index]][:-5] != self.X[i][:-5]:
+        for utt_index in range(self.rand_pick_list[self.rand_pick_list_index] - 1, 0, -1):
+            if self.X[self.rand_pick_list[self.rand_pick_list_index]][:-5] != self.X[utt_index][:-5]:
                 break
 
-        self.X_batch = self.X[i+1:self.rand_pick_list[self.rand_pick_list_index]+1]
+        self.X_batch = self.X[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
         #print(self.X_batch)
-        self.Y_batch = self.Y[i+1:self.rand_pick_list[self.rand_pick_list_index]+1]
+        self.Y_batch = self.Y[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
         #print(self.Y_batch)
         #print(len(self.X_batch))
         #print(len(self.Y_batch))
@@ -322,7 +322,7 @@ class CRF_SGD:
         
 def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
     predict = []
-    for i, dia in enumerate(dialogs):
+    for _, dia in enumerate(dialogs):
         Session_num = dialogs[dia][0][0:5]
         if Session_num == 'Ses01':
             W = S1_Weight
@@ -341,11 +341,11 @@ def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
     print(conf)
     return uar, acc, conf
 
-def plot_dynamic_line_chart(uars, accs, i, iteration, uar ,acc):
+def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
     global uars_arr, accs_arr, iters, ann_list
     
     iters[0] = iters[1]
-    iters[1] = i
+    iters[1] = Iter
 
     uars[0] = uars[1]
     uars[1] = uar
@@ -378,7 +378,7 @@ def plot_dynamic_line_chart(uars, accs, i, iteration, uar ,acc):
     print('iteration ' + str(max_uars_index + 1) + ' with the best UAR:' + str(uars_arr[max_uars_index]))
     print('iteration ' + str(max_accs_index + 1) + ' with the best ACC:' + str(accs_arr[max_accs_index]))
     
-    if i == 1:
+    if Iter == 1:
         plt.legend(loc = 'upper left')
         plt.xlabel('Training Iteration')
         plt.ylabel('Probability')
@@ -484,7 +484,7 @@ if __name__ == "__main__":
 
     emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     label = []
-    for i, dia in enumerate(dialogs):
+    for _, dia in enumerate(dialogs):
         label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
 
     plt.figure()
@@ -497,8 +497,8 @@ if __name__ == "__main__":
     uars_arr = np.zeros(shape=(1,0))
     accs_arr = np.zeros(shape=(1,0))
 
-    for i in range(1, iteration+1, 1):
-        print('training iteration : '+str(i)+'/'+str(iteration))
+    for Iter in range(1, iteration+1, 1):
+        print('training iteration : '+str(Iter)+'/'+str(iteration))
         CRF_model_Ses01.update()
         CRF_model_Ses02.update()
         CRF_model_Ses03.update()
@@ -507,7 +507,7 @@ if __name__ == "__main__":
         uar, acc, conf = test_acc(CRF_model_Ses01.W, CRF_model_Ses02.W, CRF_model_Ses03.W, CRF_model_Ses04.W, CRF_model_Ses05.W)
         uar = round(uar, 3)
         acc = round(acc, 3)
-        plot_dynamic_line_chart(uars, accs, i, iteration, uar, acc)
+        plot_dynamic_line_chart(uars, accs, Iter, iteration, uar, acc)
         print('==========================================')
     plt.savefig('result/uar&acc.png')
 
