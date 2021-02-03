@@ -2,6 +2,8 @@ import pickle
 import joblib
 import utils
 import math
+import seaborn as sn
+import matplotlib.pyplot as plt
 
 def viterbi(Weight, dialogs, trans_prob, out_dict):
     emo_list = ['a', 'h', 'n', 's']
@@ -34,26 +36,48 @@ def viterbi(Weight, dialogs, trans_prob, out_dict):
     return predict
 
 if __name__ == "__main__":
-    with open('weight.pickle','rb') as file:
-        Weight = pickle.load(file)
-    # print(Weight)
-    # print(viterbi(Weight, 30))
+    with open('weight/Ses01_weight.pickle','rb') as file:
+        S1_Weight = pickle.load(file)
+    with open('weight/Ses02_weight.pickle','rb') as file:
+        S2_Weight = pickle.load(file)
+    with open('weight/Ses03_weight.pickle','rb') as file:
+        S3_Weight = pickle.load(file)
+    with open('weight/Ses04_weight.pickle','rb') as file:
+        S4_Weight = pickle.load(file)
+    with open('weight/Ses05_weight.pickle','rb') as file:
+        S5_Weight = pickle.load(file)
     
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     emo_dict = joblib.load('./data/emo_all_iemocap.pkl')
     out_dict = joblib.load('./data/outputs.pkl')
 
-    trans_prob = utils.emo_trans_prob_BI_without_softmax(joblib.load('./data/U2U_4emo_all_iemmcap.pkl'), dialogs)
+    #trans_prob = utils.emo_trans_prob_BI_without_softmax(joblib.load('./data/U2U_4emo_all_iemmcap.pkl'), dialogs)
+    val_emo_trans_prob = utils.get_val_emo_trans_prob(joblib.load('./data/U2U_4emo_all_iemmcap.pkl'), dialogs)
     
-    predict = []
     label = []
+    predict = []
     for i, dia in enumerate(dialogs):
-        print("Decoding dialog: {}/{}, {}".format(i+1,len(dialogs),dia))
-        #print(dia)
-        #print(len(dialogs[dia]))
+        #print("Decoding dialog: {}/{}, {}".format(i+1,len(dialogs),dia))
+        Session_num = dialogs[dia][0][0:5]
+        if Session_num == 'Ses01':
+            W = S1_Weight
+        elif Session_num == 'Ses02':
+            W = S2_Weight
+        elif Session_num == 'Ses03':
+            W = S3_Weight
+        elif Session_num == 'Ses04':
+            W = S4_Weight
+        elif Session_num == 'Ses05':
+            W = S5_Weight
+        predict += viterbi(W, dialogs[dia], val_emo_trans_prob[Session_num], out_dict)
         label += [utils.convert_to_index(emo_dict[utt]) for utt in dialogs[dia]]
-        predict += viterbi(Weight, dialogs[dia], trans_prob, out_dict)
 
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
-    print('Confusion matrix:\n%s' % conf)
+    print(conf)
+    sn.heatmap(conf, annot=True, fmt='d', cmap='Blues')
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.title('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
+    plt.savefig('result/confusion_matrix.png')
+    plt.show()

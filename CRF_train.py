@@ -3,6 +3,9 @@ import joblib
 import math
 import itertools
 import pickle
+import seaborn as sn
+import matplotlib.pyplot as plt
+import argparse
 
 import utils
 import CRF_test
@@ -179,7 +182,7 @@ class CRF_SGD:
         y1 = emo_mapping_dict2[y1] #Start, a, h, n, s
         y2 = emo_mapping_dict2[y2] #a, h, n, s
 
-        N_y1y2 = trans_prob[y1+'2'+y2]
+        N_y1y2 = self.trans_prob[y1+'2'+y2]
         W_y1y2 = self.W_old[y1+'2'+y2]
 
         if t == 1:
@@ -317,17 +320,82 @@ class CRF_SGD:
             self.W[weight_name] = self.W_np[j]
             j += 1
         
-def test_acc(Weight):
+def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
     predict = []
     for i, dia in enumerate(dialogs):
-        predict += CRF_test.viterbi(Weight, dialogs[dia], trans_prob, out_dict)
-            
+        Session_num = dialogs[dia][0][0:5]
+        if Session_num == 'Ses01':
+            W = S1_Weight
+        elif Session_num == 'Ses02':
+            W = S2_Weight
+        elif Session_num == 'Ses03':
+            W = S3_Weight
+        elif Session_num == 'Ses04':
+            W = S4_Weight
+        elif Session_num == 'Ses05':
+            W = S5_Weight
+        predict += CRF_test.viterbi(W, dialogs[dia], val_emo_trans_prob[Session_num], out_dict)
+    
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
     print(conf)
-    #print('Confusion matrix:\n%s' % conf)
+    return uar, acc, conf
+
+def plot_dynamic_line_chart(uars, accs, i, iteration, uar ,acc):
+    global uars_arr, accs_arr, iters, ann_list
+    
+    iters[0] = iters[1]
+    iters[1] = i
+
+    uars[0] = uars[1]
+    uars[1] = uar
+
+    accs[0] = accs[1]
+    accs[1] = acc
+
+    plt.plot(iters, uars, c='red', marker='s', label='UAR', lw=1, ms=3)
+    plt.plot(iters, accs, c='blue', marker='s', label='ACC', lw=1, ms=3)
+    
+    #print(ann_list)
+    for _, ann in enumerate(ann_list):
+        ann.remove()
+    ann_list[:] = []
+
+    uars_arr = np.append(uars_arr, uar)
+    accs_arr = np.append(accs_arr, acc)
+
+    max_uars_index = np.argmax(uars_arr) #max value uars_arr index
+    max_accs_index = np.argmax(accs_arr) #max value accs_arr index
+    
+    show_uar_max = '('+str(max_uars_index + 1) + ', ' + str(uars_arr[max_uars_index])+')'
+    show_acc_max = '('+str(max_accs_index + 1) + ', ' + str(accs_arr[max_accs_index])+')'
+
+    ann = plt.annotate(show_uar_max, xytext=(max_uars_index + 1, uars_arr[max_uars_index]), xy = (max_uars_index + 1, uars_arr[max_uars_index]), c = 'red')
+    ann_list.append(ann)
+    ann = plt.annotate(show_acc_max, xytext=(max_accs_index + 1, accs_arr[max_accs_index] + 0.02), xy = (max_accs_index + 1, accs_arr[max_accs_index]), c = 'blue')
+    ann_list.append(ann)
+
+    print('iteration ' + str(max_uars_index + 1) + ' with the best UAR:' + str(uars_arr[max_uars_index]))
+    print('iteration ' + str(max_accs_index + 1) + ' with the best ACC:' + str(accs_arr[max_accs_index]))
+    
+    if i == 1:
+        plt.legend(loc = 'upper left')
+        plt.xlabel('Training Iteration')
+        plt.ylabel('Probability')
+        plt.title('Learning Rate:' + str(learning_rate) + '\n' + str(iteration) + ' Iteration')
+    plt.pause(0.0001)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 200)
+    parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate", default = 0.00001)
+
+    args = parser.parse_args()
+
+    iteration = args.iteration
+    learning_rate = args.learning_rate
+
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
     emo_index_dict = {'a':0, 'h':1, 'n':2, 's':3, 'ang':0, 'hap':1, 'neu':2, 'sad':3}
@@ -335,7 +403,8 @@ if __name__ == "__main__":
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     out_dict = joblib.load('./data/outputs.pkl')
 
-    trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
+    # trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
+    val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs)
     '''
     # pre-trained calssifier中增加8項，以logits計算
     out_dict['Start2a'] = math.log(trans_prob['Start2a']/(1-trans_prob['Start2a']), math.e)
@@ -349,9 +418,6 @@ if __name__ == "__main__":
     out_dict['s2End'] = 10000
     '''
 
-    X = [] #observed utterance
-    Y = [] #observed emotion(only record ang, hap, neu, sad)
-
     # Weight:relation between emos and
     # Weight:relation between pre-trained & emos
     W = { 'Start2a':0, 'Start2h':0, 'Start2n':0, 'Start2s':0, \
@@ -362,27 +428,112 @@ if __name__ == "__main__":
           'a2End':0, 'h2End':0, 'n2End':0, 's2End':0, \
           'p_a':0, 'p_h':0, 'p_n':0, 'p_s':0 
         }
-    
+
+    Ses_01_X = []
+    Ses_02_X = []
+    Ses_03_X = []
+    Ses_04_X = []
+    Ses_05_X = []
+
+    Ses_01_Y = []
+    Ses_02_Y = []
+    Ses_03_Y = []
+    Ses_04_Y = []
+    Ses_05_Y = []
+
+    X = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed utterance
+    Y = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed emotion(only record ang, hap, neu, sad)
     for dialog in dialogs.values():
         for utt in dialog:
             if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
-                X.append(utt)
-                Y.append(emo_dict[utt])
+                Session_num = utt[0:5]
+                if Session_num == 'Ses01':
+                    Ses_01_X.append(utt)
+                    Ses_01_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses02':
+                    Ses_02_X.append(utt)
+                    Ses_02_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses03':
+                    Ses_03_X.append(utt)
+                    Ses_03_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses04':
+                    Ses_04_X.append(utt)
+                    Ses_04_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses05':
+                    Ses_05_X.append(utt)
+                    Ses_05_Y.append(emo_dict[utt])
 
-    learning_rate = 0.00001
-    CRF_model = CRF_SGD(W.copy(), X, Y, trans_prob, out_dict, learning_rate) # 類別 CRF_SGD 初始化
+    X['Ses01'] = Ses_02_X + Ses_03_X + Ses_04_X + Ses_05_X
+    X['Ses02'] = Ses_01_X + Ses_03_X + Ses_04_X + Ses_05_X
+    X['Ses03'] = Ses_01_X + Ses_02_X + Ses_04_X + Ses_05_X
+    X['Ses04'] = Ses_01_X + Ses_02_X + Ses_03_X + Ses_05_X
+    X['Ses05'] = Ses_01_X + Ses_02_X + Ses_03_X + Ses_04_X
+
+    Y['Ses01'] = Ses_02_Y + Ses_03_Y + Ses_04_Y + Ses_05_Y
+    Y['Ses02'] = Ses_01_Y + Ses_03_Y + Ses_04_Y + Ses_05_Y
+    Y['Ses03'] = Ses_01_Y + Ses_02_Y + Ses_04_Y + Ses_05_Y
+    Y['Ses04'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_05_Y
+    Y['Ses05'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_04_Y
+
+    # object init
+    CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], val_emo_trans_prob['Ses01'], out_dict, learning_rate)
+    CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], val_emo_trans_prob['Ses02'], out_dict, learning_rate)
+    CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], val_emo_trans_prob['Ses03'], out_dict, learning_rate)
+    CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], val_emo_trans_prob['Ses04'], out_dict, learning_rate)
+    CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], val_emo_trans_prob['Ses05'], out_dict, learning_rate)
 
     emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     label = []
     for i, dia in enumerate(dialogs):
         label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
 
-    for i in range(1, 201, 1):
-        print('training iteration : '+str(i)+'/200')
-        CRF_model.update()
-        test_acc(CRF_model.W)
+    plt.figure()
+    ann_list = []
+    plt.axis([0, iteration, 0.5, 0.8])
+    
+    iters = [0, 0]
+    uars = [0.5, 0.5]
+    accs = [0.5, 0.5]
+    uars_arr = np.zeros(shape=(1,0))
+    accs_arr = np.zeros(shape=(1,0))
 
-    file=open('weight.pickle','wb')
-    pickle.dump(CRF_model.W, file)
-    file.close()
+    for i in range(1, iteration+1, 1):
+        print('training iteration : '+str(i)+'/'+str(iteration))
+        CRF_model_Ses01.update()
+        CRF_model_Ses02.update()
+        CRF_model_Ses03.update()
+        CRF_model_Ses04.update()
+        CRF_model_Ses05.update()
+        uar, acc, conf = test_acc(CRF_model_Ses01.W, CRF_model_Ses02.W, CRF_model_Ses03.W, CRF_model_Ses04.W, CRF_model_Ses05.W)
+        uar = round(uar, 3)
+        acc = round(acc, 3)
+        plot_dynamic_line_chart(uars, accs, i, iteration, uar, acc)
+        print('==========================================')
+    plt.savefig('result/uar&acc.png')
+
+    plt.figure()
+    sn.heatmap(conf, annot=True, fmt='d', cmap='Blues')
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.title('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
+    plt.savefig('result/confusion_matrix.png')
+    plt.show()
+
+    file1=open('weight/Ses01_weight.pickle','wb')
+    file2=open('weight/Ses02_weight.pickle','wb')
+    file3=open('weight/Ses03_weight.pickle','wb')
+    file4=open('weight/Ses04_weight.pickle','wb')
+    file5=open('weight/Ses05_weight.pickle','wb')
+
+    pickle.dump(CRF_model_Ses01.W, file1)
+    pickle.dump(CRF_model_Ses02.W, file2)
+    pickle.dump(CRF_model_Ses03.W, file3)
+    pickle.dump(CRF_model_Ses04.W, file4)
+    pickle.dump(CRF_model_Ses05.W, file5)
+
+    file1.close()
+    file2.close()
+    file3.close()
+    file4.close()
+    file5.close()
     

@@ -64,7 +64,6 @@ def emo_trans_prob_BI_without_softmax(emo_dict, dialogs, val=None):
         utt_num = 1
         for utt in dialog:
             dialog_id = utt[0:-5]
-            #print(dialog_id)
             if val and val == dialog_id[0:5]:
                 continue
             if utt_num == 1:
@@ -174,8 +173,22 @@ def emo_trans_prob_BI_without_softmax(emo_dict, dialogs, val=None):
             'Start2a':Start2a/Start2, 'Start2h':Start2h/Start2, 'Start2n':Start2n/Start2, 'Start2s':Start2s/Start2, \
             'a2End':a2End/End2, 'h2End':h2End/End2, 'n2End':n2End/End2, 's2End':s2End/End2 }
 
+def get_val_emo_trans_prob(emo_dict, dialogs):
+    """Get emo_trans_prob estimated from training sessions."""
+
+    session = ['Ses01', 'Ses02', 'Ses03', 'Ses04', 'Ses05']
+    emo_trans_prob_dict = {}
+    for i in range(len(session)):
+        val = session[i]
+
+        emo_trans_prob_com = emo_trans_prob_BI_without_softmax(emo_dict, dialogs, val)
+        emo_trans_prob_dict[val] = emo_trans_prob_com
+
+    return emo_trans_prob_dict
+
 if __name__ == "__main__":
     emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     trans_prob = emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
+    val_emo_trans_prob = get_val_emo_trans_prob(emo_dict, dialogs)
     
