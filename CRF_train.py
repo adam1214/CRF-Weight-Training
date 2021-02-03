@@ -222,7 +222,7 @@ class CRF_SGD:
         #每次更新時，採滾動的方式依次取出 N 筆資料
         #print(self.rand_pick_list[self.rand_pick_list_index])
         #print(self.X[self.rand_pick_list[self.rand_pick_list_index]])
-        for utt_index in range(self.rand_pick_list[self.rand_pick_list_index] - 1, 0, -1):
+        for utt_index in range(self.rand_pick_list[self.rand_pick_list_index] - 1, -2, -1):
             if self.X[self.rand_pick_list[self.rand_pick_list_index]][:-5] != self.X[utt_index][:-5]:
                 break
 
