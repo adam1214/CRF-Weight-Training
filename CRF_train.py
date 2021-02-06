@@ -399,7 +399,7 @@ if __name__ == "__main__":
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
     emo_index_dict = {'a':0, 'h':1, 'n':2, 's':3, 'ang':0, 'hap':1, 'neu':2, 'sad':3}
-    emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
+    emo_dict = joblib.load('./data/C2C_4emo_all_iemmcap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     out_dict = joblib.load('./data/outputs.pkl')
 
