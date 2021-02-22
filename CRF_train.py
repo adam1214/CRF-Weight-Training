@@ -10,6 +10,8 @@ import argparse
 import utils
 import CRF_test
 
+from argparse import RawTextHelpFormatter
+
 # 給定隨機種子，使每次執行結果保持一致
 np.random.seed(1)
 
@@ -386,10 +388,11 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
     plt.pause(0.0001)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
 
     parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 200)
-    parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate", default = 0.00001)
+    parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate.", default = 0.00001)
+    parser.add_argument("-d", "--dataset", type=str, help="Set the dataset to be used for training:\n\tOption 1:Original\n\tOption 2:C2C (Class to class mapping by pre-trained classifier)\n\tOption 3:U2U (Utt to Utt mapping by pre-trained classifier)", default = 'Original')
 
     args = parser.parse_args()
 
@@ -399,12 +402,68 @@ if __name__ == "__main__":
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
     emo_index_dict = {'a':0, 'h':1, 'n':2, 's':3, 'ang':0, 'hap':1, 'neu':2, 'sad':3}
-    emo_dict = joblib.load('./data/C2C_4emo_all_iemmcap.pkl')
+
+    if args.dataset == 'Original':
+        emo_dict = joblib.load('./data/emo_all_iemocap.pkl')
+        dialogs_edit = joblib.load('./data/dialog_iemocap.pkl')
+    elif args.dataset == 'C2C':
+        emo_dict = joblib.load('./data/C2C_4emo_all_iemocap.pkl')
+    elif args.dataset == 'U2U':
+        emo_dict = joblib.load('./data/U2U_4emo_all_iemocap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     out_dict = joblib.load('./data/outputs.pkl')
 
+    Ses_01_X = []
+    Ses_02_X = []
+    Ses_03_X = []
+    Ses_04_X = []
+    Ses_05_X = []
+
+    Ses_01_Y = []
+    Ses_02_Y = []
+    Ses_03_Y = []
+    Ses_04_Y = []
+    Ses_05_Y = []
+
+    X = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed utterance
+    Y = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed emotion(only record ang, hap, neu, sad)
+    for dialog in dialogs.values():
+        
+        for utt in dialog:
+            if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
+                Session_num = utt[0:5]
+                if Session_num == 'Ses01':
+                    Ses_01_X.append(utt)
+                    Ses_01_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses02':
+                    Ses_02_X.append(utt)
+                    Ses_02_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses03':
+                    Ses_03_X.append(utt)
+                    Ses_03_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses04':
+                    Ses_04_X.append(utt)
+                    Ses_04_Y.append(emo_dict[utt])
+                elif Session_num == 'Ses05':
+                    Ses_05_X.append(utt)
+                    Ses_05_Y.append(emo_dict[utt])
+            elif args.dataset == 'Original':
+                dialogs_edit[utt[:-5]].remove(utt)
+
+    X['Ses01'] = Ses_02_X + Ses_03_X + Ses_04_X + Ses_05_X
+    X['Ses02'] = Ses_01_X + Ses_03_X + Ses_04_X + Ses_05_X
+    X['Ses03'] = Ses_01_X + Ses_02_X + Ses_04_X + Ses_05_X
+    X['Ses04'] = Ses_01_X + Ses_02_X + Ses_03_X + Ses_05_X
+    X['Ses05'] = Ses_01_X + Ses_02_X + Ses_03_X + Ses_04_X
+
+    Y['Ses01'] = Ses_02_Y + Ses_03_Y + Ses_04_Y + Ses_05_Y
+    Y['Ses02'] = Ses_01_Y + Ses_03_Y + Ses_04_Y + Ses_05_Y
+    Y['Ses03'] = Ses_01_Y + Ses_02_Y + Ses_04_Y + Ses_05_Y
+    Y['Ses04'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_05_Y
+    Y['Ses05'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_04_Y
+
     # trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
-    val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs)
+    val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs_edit)
     '''
     # pre-trained calssifier中增加8項，以logits計算
     out_dict['Start2a'] = math.log(trans_prob['Start2a']/(1-trans_prob['Start2a']), math.e)
@@ -428,52 +487,6 @@ if __name__ == "__main__":
           'a2End':0, 'h2End':0, 'n2End':0, 's2End':0, \
           'p_a':0, 'p_h':0, 'p_n':0, 'p_s':0 
         }
-
-    Ses_01_X = []
-    Ses_02_X = []
-    Ses_03_X = []
-    Ses_04_X = []
-    Ses_05_X = []
-
-    Ses_01_Y = []
-    Ses_02_Y = []
-    Ses_03_Y = []
-    Ses_04_Y = []
-    Ses_05_Y = []
-
-    X = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed utterance
-    Y = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed emotion(only record ang, hap, neu, sad)
-    for dialog in dialogs.values():
-        for utt in dialog:
-            if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
-                Session_num = utt[0:5]
-                if Session_num == 'Ses01':
-                    Ses_01_X.append(utt)
-                    Ses_01_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses02':
-                    Ses_02_X.append(utt)
-                    Ses_02_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses03':
-                    Ses_03_X.append(utt)
-                    Ses_03_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses04':
-                    Ses_04_X.append(utt)
-                    Ses_04_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses05':
-                    Ses_05_X.append(utt)
-                    Ses_05_Y.append(emo_dict[utt])
-
-    X['Ses01'] = Ses_02_X + Ses_03_X + Ses_04_X + Ses_05_X
-    X['Ses02'] = Ses_01_X + Ses_03_X + Ses_04_X + Ses_05_X
-    X['Ses03'] = Ses_01_X + Ses_02_X + Ses_04_X + Ses_05_X
-    X['Ses04'] = Ses_01_X + Ses_02_X + Ses_03_X + Ses_05_X
-    X['Ses05'] = Ses_01_X + Ses_02_X + Ses_03_X + Ses_04_X
-
-    Y['Ses01'] = Ses_02_Y + Ses_03_Y + Ses_04_Y + Ses_05_Y
-    Y['Ses02'] = Ses_01_Y + Ses_03_Y + Ses_04_Y + Ses_05_Y
-    Y['Ses03'] = Ses_01_Y + Ses_02_Y + Ses_04_Y + Ses_05_Y
-    Y['Ses04'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_05_Y
-    Y['Ses05'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_04_Y
 
     # object init
     CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], val_emo_trans_prob['Ses01'], out_dict, learning_rate)
