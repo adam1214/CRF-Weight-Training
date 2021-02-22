@@ -187,7 +187,7 @@ def get_val_emo_trans_prob(emo_dict, dialogs):
     return emo_trans_prob_dict
 
 if __name__ == "__main__":
-    emo_dict = joblib.load('./data/U2U_4emo_all_iemmcap.pkl')
+    emo_dict = joblib.load('./data/U2U_4emo_all_iemocap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     trans_prob = emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
     val_emo_trans_prob = get_val_emo_trans_prob(emo_dict, dialogs)

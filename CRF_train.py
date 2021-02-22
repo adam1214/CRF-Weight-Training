@@ -283,7 +283,10 @@ class CRF_SGD:
                         else:
                             N_internal[t-1][c][j] = 0 # transition prob. == 0
                     else: #part 1:relation between pre-trained & emos (internal feature extraction)
-                        N_internal[t-1][c][j] = self.out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_item[1]]] # emission prob.
+                        if emo_com_item[1] == e2:
+                            N_internal[t-1][c][j] = self.out_dict[self.X_batch[t-1]][emo_index_dict[emo_com_item[1]]] # emission prob.
+                        else:
+                            N_internal[t-1][c][j] = 0
                     c += 1
             j += 1
         
@@ -384,7 +387,7 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
         plt.legend(loc = 'upper left')
         plt.xlabel('Training Iteration')
         plt.ylabel('Probability')
-        plt.title('Learning Rate:' + str(learning_rate) + '\n' + str(iteration) + ' Iteration')
+        plt.title('Learning Rate:' + str(learning_rate) + '\n' + str(iteration) + ' Iteration\n' + args.dataset + ' dataset')
     plt.pause(0.0001)
 
 if __name__ == "__main__":
@@ -428,7 +431,6 @@ if __name__ == "__main__":
     X = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed utterance
     Y = {'Ses01':[], 'Ses02':[], 'Ses03':[], 'Ses04':[], 'Ses05':[]} #observed emotion(only record ang, hap, neu, sad)
     for dialog in dialogs.values():
-        
         for utt in dialog:
             if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
                 Session_num = utt[0:5]

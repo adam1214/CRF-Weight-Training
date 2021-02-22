@@ -52,7 +52,7 @@ if __name__ == "__main__":
     out_dict = joblib.load('./data/outputs.pkl')
 
     #trans_prob = utils.emo_trans_prob_BI_without_softmax(joblib.load('./data/U2U_4emo_all_iemmcap.pkl'), dialogs)
-    val_emo_trans_prob = utils.get_val_emo_trans_prob(joblib.load('./data/U2U_4emo_all_iemmcap.pkl'), dialogs)
+    val_emo_trans_prob = utils.get_val_emo_trans_prob(joblib.load('./data/U2U_4emo_all_iemocap.pkl'), dialogs)
     
     label = []
     predict = []
