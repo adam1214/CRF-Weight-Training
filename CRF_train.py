@@ -465,7 +465,10 @@ if __name__ == "__main__":
     Y['Ses05'] = Ses_01_Y + Ses_02_Y + Ses_03_Y + Ses_04_Y
 
     # trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
-    val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs_edit)
+    if args.dataset == 'Original':
+        val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs_edit)
+    else:
+        val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs)
     '''
     # pre-trained calssifier中增加8項，以logits計算
     out_dict['Start2a'] = math.log(trans_prob['Start2a']/(1-trans_prob['Start2a']), math.e)
