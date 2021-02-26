@@ -5,7 +5,7 @@ import math
 import seaborn as sn
 import matplotlib.pyplot as plt
 
-def viterbi(Weight, dialogs, trans_prob, out_dict):
+def viterbi(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
     emo_list = ['a', 'h', 'n', 's']
     predict = []
     Q = [([0]*4) for i in range(len(dialogs))] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
@@ -32,8 +32,10 @@ def viterbi(Weight, dialogs, trans_prob, out_dict):
         emo_vals = [Q[i][0], Q[i][1], Q[i][2], Q[i][3]]
         max_index = emo_vals.index(max(emo_vals)) # 最大值的索引
         predict.append(max_index)
-    #print(Q)
-    return predict
+    if concatenate_or_not == 0:
+        return predict
+    else:
+        return predict[int(len(predict)/2):len(predict)]
 
 if __name__ == "__main__":
     with open('weight/Ses01_weight.pickle','rb') as file:

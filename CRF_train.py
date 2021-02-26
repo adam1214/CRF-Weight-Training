@@ -339,7 +339,13 @@ def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
             W = S4_Weight
         elif Session_num == 'Ses05':
             W = S5_Weight
-        predict += CRF_test.viterbi(W, dialogs[dia], val_emo_trans_prob[Session_num], out_dict)
+        
+        if concatenate_or_not == 1:
+            concat_dialog = dialogs[dia] + dialogs[dia]
+        else:
+            concat_dialog = dialogs[dia]
+        
+        predict += CRF_test.viterbi(W, concat_dialog, val_emo_trans_prob[Session_num], out_dict, concatenate_or_not)
     
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
@@ -396,11 +402,13 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 3000)
     parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate.", default = 0.000001)
     parser.add_argument("-d", "--dataset", type=str, help="Set the dataset to be used for training:\n\tOption 1:Original\n\tOption 2:C2C (Class to class mapping by pre-trained classifier)\n\tOption 3:U2U (Utt to Utt mapping by pre-trained classifier)", default = 'Original')
+    parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no", default = 1)
 
     args = parser.parse_args()
 
     iteration = args.iteration
     learning_rate = args.learning_rate
+    concatenate_or_not = args.concatenation
 
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
