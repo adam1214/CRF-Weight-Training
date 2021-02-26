@@ -482,7 +482,7 @@ if __name__ == "__main__":
     out_dict['s2End'] = 10000
     '''
 
-    Gau_rand_num = np.random.normal(0, 0.000001, 28) #0-mean & 1-std gaussian distribution
+    Gau_rand_num = np.random.normal(0, 0.000001, 28) #0-mean gaussian distribution
     # Weight:relation between emos and
     # Weight:relation between pre-trained & emos
     W = { 'Start2a':0, 'Start2h':0, 'Start2n':0, 'Start2s':0, \
