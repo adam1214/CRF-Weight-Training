@@ -21,7 +21,7 @@ class CRF_SGD:
         self.W_np = np.zeros((28))
         self.W_old = {}
         for weight_name in self.W:
-            self.W_old[weight_name] = 0
+            self.W_old[weight_name] = self.W[weight_name]
         self.X = X
         self.Y = Y
         self.trans_prob = trans_prob
@@ -393,8 +393,8 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
 
-    parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 200)
-    parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate.", default = 0.00001)
+    parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 3000)
+    parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate.", default = 0.000001)
     parser.add_argument("-d", "--dataset", type=str, help="Set the dataset to be used for training:\n\tOption 1:Original\n\tOption 2:C2C (Class to class mapping by pre-trained classifier)\n\tOption 3:U2U (Utt to Utt mapping by pre-trained classifier)", default = 'Original')
 
     args = parser.parse_args()
@@ -482,6 +482,7 @@ if __name__ == "__main__":
     out_dict['s2End'] = 10000
     '''
 
+    Gau_rand_num = np.random.normal(0, 0.000001, 28) #0-mean & 1-std gaussian distribution
     # Weight:relation between emos and
     # Weight:relation between pre-trained & emos
     W = { 'Start2a':0, 'Start2h':0, 'Start2n':0, 'Start2s':0, \
@@ -492,6 +493,10 @@ if __name__ == "__main__":
           'a2End':0, 'h2End':0, 'n2End':0, 's2End':0, \
           'p_a':0, 'p_h':0, 'p_n':0, 'p_s':0 
         }
+    Index = 0
+    for weight_name in W:
+        W[weight_name] = Gau_rand_num[Index]
+        Index += 1
 
     # object init
     CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], val_emo_trans_prob['Ses01'], out_dict, learning_rate)
