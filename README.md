@@ -1,6 +1,6 @@
 # Dialogical-Emotion-Decoding-CRF
 * Train Weight
-    * `python3 CRF_train.py [-h] [-i ITERATION] [-l LEARNING_RATE] [-d DATASET]`
+    * `python3 CRF_train.py [-h] [-i ITERATION] [-l LEARNING_RATE] [-d DATASET] [-c CONCATENATION]`
     * optional arguments:
       *    -i：Set parameter update times. (default value is 3000)
       *    -l：Set learning rate. (default value is 0.000001)
