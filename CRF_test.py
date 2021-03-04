@@ -50,7 +50,7 @@ def viterbi_inter(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_em
     else:
         return predict[int(len(predict)/2):len(predict)]
 
-def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train): # better than viterbi_inter
+def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train): # better than viterbi_inter
     emo_list = ['a', 'h', 'n', 's']
     M_utts = []
     F_utts = []
@@ -79,15 +79,11 @@ def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_em
         predict_dict[speaker_utts[0]] = max_index
 
         for i in range(1, len(speaker_utts), 1):
-            pre_utt = speaker_utts[i-1]
-            cur_utt = speaker_utts[i]
             for j in range(0, 4, 1): # j = 0,1,2,3
                 if speaker_info_train == 0:
                     trans_prob = no_speaker_info_emo_trans_prob_dict
-                elif pre_utt[-4] == cur_utt[-4]:
-                    trans_prob = intra_emo_trans_prob_dict
                 else:
-                    trans_prob = inter_emo_trans_prob_dict
+                    trans_prob = intra_emo_trans_prob_dict
                 candi_0 = Q[i-1][0] + Weight[emo_list[0]+'2'+emo_list[j]]*trans_prob[emo_list[0]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[speaker_utts[i]][j]
                 candi_1 = Q[i-1][1] + Weight[emo_list[1]+'2'+emo_list[j]]*trans_prob[emo_list[1]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[speaker_utts[i]][j]
                 candi_2 = Q[i-1][2] + Weight[emo_list[2]+'2'+emo_list[j]]*trans_prob[emo_list[2]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[speaker_utts[i]][j]

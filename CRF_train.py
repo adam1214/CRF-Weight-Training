@@ -441,7 +441,7 @@ def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
         if args.inter_intra_test == 'inter':
             predict += CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
         elif args.inter_intra_test == 'intra':
-            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
+            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
     
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
@@ -673,3 +673,19 @@ if __name__ == "__main__":
     file4.close()
     file5.close()
     
+    print("====================args====================")
+    print(args.iteration, 'iteration')
+    print('learning rate:', args.learning_rate)
+    print(args.dataset, 'dataset')
+    if args.concatenation == 1:
+        print('With concatenation')
+    else:
+        print('Without concatenation')
+    print('Viterbi algo. with', args.inter_intra_test)
+    if args.speaker_info_train == 0:
+        print('not consider speaker info')
+    elif args.speaker_info_train == 1:
+        print('consider intra-speaker only')
+    elif args.speaker_info_train == 2:
+        print('consider intra-speaker & inter-speaker')
+    print("====================args====================")
