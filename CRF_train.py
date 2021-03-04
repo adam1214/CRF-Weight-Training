@@ -16,7 +16,7 @@ from argparse import RawTextHelpFormatter
 np.random.seed(1)
 
 class CRF_SGD:
-    def __init__(self, W, X, Y, trans_prob, out_dict, learning_rate):
+    def __init__(self, W, X, Y, trans_prob_no_spk_info, trans_prob_inter, trans_prob_intra, out_dict, learning_rate):
         self.W = W
         self.W_np = np.zeros((28))
         self.W_old = {}
@@ -24,7 +24,10 @@ class CRF_SGD:
             self.W_old[weight_name] = self.W[weight_name]
         self.X = X
         self.Y = Y
-        self.trans_prob = trans_prob
+        self.trans_prob_no_spk_info = trans_prob_no_spk_info
+        self.trans_prob_inter = trans_prob_inter
+        self.trans_prob_intra = trans_prob_intra
+        self.trans_prob = {}
         self.out_dict = out_dict
         self.learning_rate = learning_rate
         
@@ -47,6 +50,11 @@ class CRF_SGD:
             Q = [([0]*4) for i in range(t)] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
         
         utt = self.X_batch[0]
+        pre_spk = utt[-4]
+        if args.speaker_info_train == 0:
+            self.trans_prob = self.trans_prob_no_spk_info
+        else:
+            self.trans_prob = self.trans_prob_intra
         # 第一個時間點 (transition prob. * weight + emission prob. * weight) => (f_j*w_j)
         Q[0][0] = math.exp(self.trans_prob['Start2a']*self.W_old['Start2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
         Q[0][1] = math.exp(self.trans_prob['Start2h']*self.W_old['Start2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
@@ -55,6 +63,12 @@ class CRF_SGD:
 
         for i in range(1, t - 1, 1):
             utt = self.X_batch[i]
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            elif utt[-4] == pre_spk:
+                self.trans_prob = self.trans_prob_intra
+            elif utt[-4] != pre_spk:
+                self.trans_prob = self.trans_prob_inter
             for j in range(0, 4, 1):
                 if j == 0:
                     Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
@@ -76,32 +90,61 @@ class CRF_SGD:
                               Q[i-1][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                               Q[i-1][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                               Q[i-1][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
-        
+            pre_spk = utt[-4]
+
         if y1 == 'ang':
             utt = self.X_batch[t-1]
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            elif utt[-4] == pre_spk:
+                self.trans_prob = self.trans_prob_intra
+            elif utt[-4] != pre_spk:
+                self.trans_prob = self.trans_prob_inter
             alpha = Q[t-2][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
                     Q[t-2][1]*math.exp(self.trans_prob['h2a']*self.W_old['h2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
                     Q[t-2][2]*math.exp(self.trans_prob['n2a']*self.W_old['n2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
                     Q[t-2][3]*math.exp(self.trans_prob['s2a']*self.W_old['s2a'] + self.out_dict[utt][0]*self.W_old['p_a'])
         elif y1 == 'hap':
             utt = self.X_batch[t-1]
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            elif utt[-4] == pre_spk:
+                self.trans_prob = self.trans_prob_intra
+            elif utt[-4] != pre_spk:
+                self.trans_prob = self.trans_prob_inter
             alpha = Q[t-2][0]*math.exp(self.trans_prob['a2h']*self.W_old['a2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
                     Q[t-2][1]*math.exp(self.trans_prob['h2h']*self.W_old['h2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
                     Q[t-2][2]*math.exp(self.trans_prob['n2h']*self.W_old['n2h'] + self.out_dict[utt][1]*self.W_old['p_h']) + \
                     Q[t-2][3]*math.exp(self.trans_prob['s2h']*self.W_old['s2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
         elif y1 == 'neu':
             utt = self.X_batch[t-1]
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            elif utt[-4] == pre_spk:
+                self.trans_prob = self.trans_prob_intra
+            elif utt[-4] != pre_spk:
+                self.trans_prob = self.trans_prob_inter
             alpha = Q[t-2][0]*math.exp(self.trans_prob['a2n']*self.W_old['a2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
                     Q[t-2][1]*math.exp(self.trans_prob['h2n']*self.W_old['h2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
                     Q[t-2][2]*math.exp(self.trans_prob['n2n']*self.W_old['n2n'] + self.out_dict[utt][2]*self.W_old['p_n']) + \
                     Q[t-2][3]*math.exp(self.trans_prob['s2n']*self.W_old['s2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
         elif y1 == 'sad':
             utt = self.X_batch[t-1]
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            elif utt[-4] == pre_spk:
+                self.trans_prob = self.trans_prob_intra
+            elif utt[-4] != pre_spk:
+                self.trans_prob = self.trans_prob_inter
             alpha = Q[t-2][0]*math.exp(self.trans_prob['a2s']*self.W_old['a2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                     Q[t-2][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                     Q[t-2][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                     Q[t-2][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
         elif y1 == 'End': # estimate Z(T)
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            else:
+                self.trans_prob = self.trans_prob_intra
             alpha = Q[t-2][0]*math.exp(self.trans_prob['a2End']*self.W_old['a2End']) + \
                     Q[t-2][1]*math.exp(self.trans_prob['h2End']*self.W_old['h2End']) + \
                     Q[t-2][2]*math.exp(self.trans_prob['n2End']*self.W_old['n2End']) + \
@@ -127,8 +170,15 @@ class CRF_SGD:
         Q = [([0]*4) for i in range(T-t)] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
         
         utt = self.X_batch[t-1]
+        utt_pre = self.X_batch[t-2]
+        if args.speaker_info_train == 0:
+            self.trans_prob = self.trans_prob_no_spk_info
+        elif utt[-4] == utt_pre[-4]:
+            self.trans_prob = self.trans_prob_intra
+        elif utt[-4] != utt_pre[-4]:
+            self.trans_prob = self.trans_prob_inter      
         # 第一個時間點 (transition prob. * weight + emission prob. * weight) => (f_j*w_j)
-        if y2 == 'ang':    
+        if y2 == 'ang':
             key = 'a'
         elif y2 == 'hap':
             key = 'h'
@@ -140,9 +190,16 @@ class CRF_SGD:
         Q[0][1] = math.exp(self.trans_prob[key+'2h']*self.W_old[key+'2h'] + self.out_dict[utt][1]*self.W_old['p_h'])
         Q[0][2] = math.exp(self.trans_prob[key+'2n']*self.W_old[key+'2n'] + self.out_dict[utt][2]*self.W_old['p_n'])
         Q[0][3] = math.exp(self.trans_prob[key+'2s']*self.W_old[key+'2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
-
+        
+        pre_spk = utt[-4]
         for i in range(1, T - t - 1, 1):
             utt = self.X_batch[t-1+i]
+            if args.speaker_info_train == 0:
+                self.trans_prob = self.trans_prob_no_spk_info
+            elif utt[-4] == pre_spk:
+                self.trans_prob = self.trans_prob_intra
+            elif utt[-4] != pre_spk:
+                self.trans_prob = self.trans_prob_inter
             for j in range(0, 4, 1):
                 if j == 0:
                     Q[i][j] = Q[i-1][0]*math.exp(self.trans_prob['a2a']*self.W_old['a2a'] + self.out_dict[utt][0]*self.W_old['p_a']) + \
@@ -164,7 +221,12 @@ class CRF_SGD:
                               Q[i-1][1]*math.exp(self.trans_prob['h2s']*self.W_old['h2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                               Q[i-1][2]*math.exp(self.trans_prob['n2s']*self.W_old['n2s'] + self.out_dict[utt][3]*self.W_old['p_s']) + \
                               Q[i-1][3]*math.exp(self.trans_prob['s2s']*self.W_old['s2s'] + self.out_dict[utt][3]*self.W_old['p_s'])
+            pre_spk = utt[-4]
         #print(Q)
+        if args.speaker_info_train == 0:
+            self.trans_prob = self.trans_prob_no_spk_info
+        else:
+            self.trans_prob = self.trans_prob_intra
         beta = Q[T-t-2][0]*math.exp(self.trans_prob['a2End']*self.W_old['a2End']) + \
                Q[T-t-2][1]*math.exp(self.trans_prob['h2End']*self.W_old['h2End']) + \
                Q[T-t-2][2]*math.exp(self.trans_prob['n2End']*self.W_old['n2End']) + \
@@ -184,11 +246,8 @@ class CRF_SGD:
         y1 = emo_mapping_dict2[y1] #Start, a, h, n, s
         y2 = emo_mapping_dict2[y2] #a, h, n, s
 
-        N_y1y2 = self.trans_prob[y1+'2'+y2]
-        W_y1y2 = self.W_old[y1+'2'+y2]
-
         if t == 1:
-            utt1 = 'Start2' + y2
+            utt1 = 'Start'
             N_py1 = 0
             W_py1 = 0
         else:
@@ -197,6 +256,16 @@ class CRF_SGD:
             W_py1 = self.W_old['p_'+y1]
         
         utt2 = self.X_batch[t-1]
+
+        if args.speaker_info_train == 0:
+            self.trans_prob = self.trans_prob_no_spk_info
+        elif utt1[-4] == utt2[-4] or utt1[-4] == 't':
+            self.trans_prob = self.trans_prob_intra
+        else:
+            self.trans_prob = self.trans_prob_inter
+        N_y1y2 = self.trans_prob[y1+'2'+y2]
+        W_y1y2 = self.W_old[y1+'2'+y2]
+
         N_py2 = self.out_dict[utt2][emo_index_dict[y2]]
         W_py2 = self.W_old['p_'+y2]
         
@@ -258,16 +327,34 @@ class CRF_SGD:
             else: # part1 weight feature(N) extraction
                 pre_emo = 'Start'
                 current_emo = ''
+
+                pre_spk = ''
+                cur_spk = ''
                 for utt in self.X_batch:
                     #print(utt, emo_dict[utt])
                     current_emo = emo_dict[utt]
+                    cur_spk = utt[-4]
+                    if args.speaker_info_train == 0:
+                        self.trans_prob = self.trans_prob_no_spk_info
+                    elif cur_spk == pre_spk or pre_spk == '':
+                        self.trans_prob = self.trans_prob_intra
+                    else:
+                        self.trans_prob = self.trans_prob_inter
+
                     if pre_emo == e1 and current_emo == e2:
-                        N_e1e2[j] += 1
+                        N_e1e2[j] += self.trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]]
+
                     pre_emo = current_emo
+                    pre_spk = cur_spk
+
                 current_emo = 'End'
+                cur_spk = 'End'
+                if args.speaker_info_train == 0:
+                    self.trans_prob = self.trans_prob_no_spk_info
+                else:
+                    self.trans_prob = self.trans_prob_intra
                 if pre_emo == e1 and current_emo == e2:
-                    N_e1e2[j] += 1
-                N_e1e2[j] = N_e1e2[j] * self.trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]]
+                    N_e1e2[j] += self.trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]]
             
             for t in range(1,T+1,1):
                 c = 0
@@ -279,6 +366,12 @@ class CRF_SGD:
                 for emo_com_item in tmp_emo_com_list:
                     if e1 != 'pre-trained': #part 2:relation between emos (internal feature extraction)
                         if emo_com_item[0] == e1 and emo_com_item[1] == e2:
+                            if args.speaker_info_train == 0:
+                                self.trans_prob = self.trans_prob_no_spk_info
+                            elif t == 1 or (self.X_batch[t-2])[-4] == (self.X_batch[t-1])[-4]:
+                                self.trans_prob = self.trans_prob_intra
+                            else:
+                                self.trans_prob = self.trans_prob_inter
                             N_internal[t-1][c][j] = self.trans_prob[emo_mapping_dict2[e1]+'2'+emo_mapping_dict2[e2]] # transition prob.
                         else:
                             N_internal[t-1][c][j] = 0 # transition prob. == 0
@@ -345,10 +438,10 @@ def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
         else:
             concat_dialog = dialogs[dia]
         
-        if args.inter_intra == 'inter':
-            predict += CRF_test.viterbi_inter(W, concat_dialog, val_emo_trans_prob[Session_num], out_dict, concatenate_or_not)
-        elif args.inter_intra == 'intra':
-            predict += CRF_test.viterbi_intra(W, concat_dialog, val_emo_trans_prob[Session_num], out_dict, concatenate_or_not)
+        if args.inter_intra_test == 'inter':
+            predict += CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
+        elif args.inter_intra_test == 'intra':
+            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
     
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
@@ -405,9 +498,10 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 3000)
     parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate.", default = 0.000001)
     parser.add_argument("-d", "--dataset", type=str, help="Set the dataset to be used for training:\n\tOption 1:Original\n\tOption 2:C2C (Class to class mapping by pre-trained classifier)\n\tOption 3:U2U (Utt to Utt mapping by pre-trained classifier)", default = "Original")
-    parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no", default = 1)
-    parser.add_argument("-n", "--inter_intra", type=str, help="When predicting a dialog, use intraspeaker emotion flow or interspeaker emotion change.", default = "intra")
-    
+    parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no", default = 0) # no concatenation is better
+    parser.add_argument("-n", "--inter_intra_test", type=str, help="When predicting a dialog, use intraspeaker emotion flow or interspeaker emotion change.", default = "intra")
+    parser.add_argument("-s", "--speaker_info_train", type=int, help="When estimating emotion transition probabilities, do you want to consider speakers information?\n\t0:not consider speaker info\n\t1:consider intra-speaker only\n\t2:consider intra-speaker & inter-speaker", default = 2)
+
     args = parser.parse_args()
 
     iteration = args.iteration
@@ -478,9 +572,9 @@ if __name__ == "__main__":
 
     # trans_prob = utils.emo_trans_prob_BI_without_softmax(emo_dict, dialogs)
     if args.dataset == 'Original':
-        val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs_edit)
+        no_speaker_info_emo_trans_prob_dict, intra_emo_trans_prob_dict, inter_emo_trans_prob_dict = utils.get_val_emo_trans_prob(emo_dict, dialogs_edit)
     else:
-        val_emo_trans_prob = utils.get_val_emo_trans_prob(emo_dict, dialogs)
+        no_speaker_info_emo_trans_prob_dict, intra_emo_trans_prob_dict, inter_emo_trans_prob_dict = utils.get_val_emo_trans_prob(emo_dict, dialogs)
     '''
     # pre-trained calssifier中增加8項，以logits計算
     out_dict['Start2a'] = math.log(trans_prob['Start2a']/(1-trans_prob['Start2a']), math.e)
@@ -511,11 +605,18 @@ if __name__ == "__main__":
         Index += 1
 
     # object init
-    CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], val_emo_trans_prob['Ses01'], out_dict, learning_rate)
-    CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], val_emo_trans_prob['Ses02'], out_dict, learning_rate)
-    CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], val_emo_trans_prob['Ses03'], out_dict, learning_rate)
-    CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], val_emo_trans_prob['Ses04'], out_dict, learning_rate)
-    CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], val_emo_trans_prob['Ses05'], out_dict, learning_rate)
+    if args.speaker_info_train == 0:
+        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], no_speaker_info_emo_trans_prob_dict['Ses01'], {}, {}, out_dict, learning_rate)
+        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], no_speaker_info_emo_trans_prob_dict['Ses02'], {}, {}, out_dict, learning_rate)
+        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], no_speaker_info_emo_trans_prob_dict['Ses03'], {}, {}, out_dict, learning_rate)
+        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], no_speaker_info_emo_trans_prob_dict['Ses04'], {}, {}, out_dict, learning_rate)
+        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], no_speaker_info_emo_trans_prob_dict['Ses05'], {}, {}, out_dict, learning_rate)
+    else:
+        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], {}, inter_emo_trans_prob_dict['Ses01'], intra_emo_trans_prob_dict['Ses01'], out_dict, learning_rate)
+        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], {}, inter_emo_trans_prob_dict['Ses02'], intra_emo_trans_prob_dict['Ses02'], out_dict, learning_rate)
+        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], {}, inter_emo_trans_prob_dict['Ses03'], intra_emo_trans_prob_dict['Ses03'], out_dict, learning_rate)
+        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], {}, inter_emo_trans_prob_dict['Ses04'], intra_emo_trans_prob_dict['Ses04'], out_dict, learning_rate)
+        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], {}, inter_emo_trans_prob_dict['Ses05'], intra_emo_trans_prob_dict['Ses05'], out_dict, learning_rate)
 
     emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     label = []

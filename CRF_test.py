@@ -5,12 +5,17 @@ import math
 import seaborn as sn
 import matplotlib.pyplot as plt
 
-def viterbi_inter(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
+def viterbi_inter(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train):
     emo_list = ['a', 'h', 'n', 's']
     predict = []
+    trans_prob = {}
     Q = [([0]*4) for i in range(len(dialogs))] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     
     # 第一個時間點 (f_j*w_j)
+    if speaker_info_train == 0:
+        trans_prob = no_speaker_info_emo_trans_prob_dict
+    else:
+        trans_prob = intra_emo_trans_prob_dict
     Q[0][0] = Weight['Start2a']*trans_prob['Start2a'] + Weight['p_a']*out_dict[dialogs[0]][0]
     Q[0][1] = Weight['Start2h']*trans_prob['Start2h'] + Weight['p_h']*out_dict[dialogs[0]][1]
     Q[0][2] = Weight['Start2n']*trans_prob['Start2n'] + Weight['p_n']*out_dict[dialogs[0]][2]
@@ -20,7 +25,15 @@ def viterbi_inter(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
     predict.append(max_index)
 
     for i in range(1, len(dialogs), 1):
+        pre_utt = dialogs[i-1]
+        cur_utt = dialogs[i]
         for j in range(0, 4, 1): # j = 0,1,2,3
+            if speaker_info_train == 0:
+                trans_prob = no_speaker_info_emo_trans_prob_dict
+            elif pre_utt[-4] == cur_utt[-4]:
+                trans_prob = intra_emo_trans_prob_dict
+            else:
+                trans_prob = inter_emo_trans_prob_dict
             candi_0 = Q[i-1][0] + Weight[emo_list[0]+'2'+emo_list[j]]*trans_prob[emo_list[0]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[dialogs[i]][j]
             candi_1 = Q[i-1][1] + Weight[emo_list[1]+'2'+emo_list[j]]*trans_prob[emo_list[1]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[dialogs[i]][j]
             candi_2 = Q[i-1][2] + Weight[emo_list[2]+'2'+emo_list[j]]*trans_prob[emo_list[2]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[dialogs[i]][j]
@@ -37,7 +50,7 @@ def viterbi_inter(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
     else:
         return predict[int(len(predict)/2):len(predict)]
 
-def viterbi_intra(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
+def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train): # better than viterbi_inter
     emo_list = ['a', 'h', 'n', 's']
     M_utts = []
     F_utts = []
@@ -53,6 +66,10 @@ def viterbi_intra(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
         Q = [([0]*4) for i in range(len(speaker_utts))] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
         
         # 第一個時間點 (f_j*w_j)
+        if speaker_info_train == 0:
+            trans_prob = no_speaker_info_emo_trans_prob_dict
+        else:
+            trans_prob = intra_emo_trans_prob_dict
         Q[0][0] = Weight['Start2a']*trans_prob['Start2a'] + Weight['p_a']*out_dict[speaker_utts[0]][0]
         Q[0][1] = Weight['Start2h']*trans_prob['Start2h'] + Weight['p_h']*out_dict[speaker_utts[0]][1]
         Q[0][2] = Weight['Start2n']*trans_prob['Start2n'] + Weight['p_n']*out_dict[speaker_utts[0]][2]
@@ -62,7 +79,15 @@ def viterbi_intra(Weight, dialogs, trans_prob, out_dict, concatenate_or_not):
         predict_dict[speaker_utts[0]] = max_index
 
         for i in range(1, len(speaker_utts), 1):
+            pre_utt = speaker_utts[i-1]
+            cur_utt = speaker_utts[i]
             for j in range(0, 4, 1): # j = 0,1,2,3
+                if speaker_info_train == 0:
+                    trans_prob = no_speaker_info_emo_trans_prob_dict
+                elif pre_utt[-4] == cur_utt[-4]:
+                    trans_prob = intra_emo_trans_prob_dict
+                else:
+                    trans_prob = inter_emo_trans_prob_dict
                 candi_0 = Q[i-1][0] + Weight[emo_list[0]+'2'+emo_list[j]]*trans_prob[emo_list[0]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[speaker_utts[i]][j]
                 candi_1 = Q[i-1][1] + Weight[emo_list[1]+'2'+emo_list[j]]*trans_prob[emo_list[1]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[speaker_utts[i]][j]
                 candi_2 = Q[i-1][2] + Weight[emo_list[2]+'2'+emo_list[j]]*trans_prob[emo_list[2]+'2'+emo_list[j]] + Weight['p_'+emo_list[j]]*out_dict[speaker_utts[i]][j]
