@@ -433,15 +433,15 @@ def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
         elif Session_num == 'Ses05':
             W = S5_Weight
         
-        if concatenate_or_not == 1:
+        if args.concatenation == 1:
             concat_dialog = dialogs[dia] + dialogs[dia]
         else:
             concat_dialog = dialogs[dia]
         
         if args.inter_intra_test == 'inter':
-            predict += CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
+            predict += CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train)
         elif args.inter_intra_test == 'intra':
-            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, concatenate_or_not, args.speaker_info_train)
+            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train)
     
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
@@ -489,7 +489,8 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
         plt.legend(loc = 'upper left')
         plt.xlabel('Training Iteration')
         plt.ylabel('Probability')
-        plt.title('Learning Rate:' + str(learning_rate) + '\n' + str(iteration) + ' Iteration\n' + args.dataset + ' dataset')
+        
+        plt.title(diagram_title, fontsize=10)
     plt.pause(0.0001)
 
 if __name__ == "__main__":
@@ -503,10 +504,19 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--speaker_info_train", type=int, help="When estimating emotion transition probabilities, do you want to consider speakers information?\n\t0:not consider speaker info\n\t1:consider intra-speaker only\n\t2:consider intra-speaker & inter-speaker", default = 2)
 
     args = parser.parse_args()
-
-    iteration = args.iteration
-    learning_rate = args.learning_rate
-    concatenate_or_not = args.concatenation
+    diagram_title = 'Learning Rate:' + str(args.learning_rate) + '#####' + str(args.iteration) + ' Iteration#####' + args.dataset + ' dataset\n'
+    if args.concatenation == 1:
+        diagram_title += 'With concatenation#####'
+    else:
+        diagram_title += 'Without concatenation#####'
+    diagram_title += 'Viterbi algo. with '
+    diagram_title += args.inter_intra_test
+    if args.speaker_info_train == 0:
+        diagram_title += '\nTraining does not consider speaker info'
+    elif args.speaker_info_train == 1:
+        diagram_title += '\nTraining considers intra-speaker only'
+    elif args.speaker_info_train == 2:
+        diagram_title += '\nTraining considers intra-speaker & inter-speaker'
 
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
@@ -606,17 +616,17 @@ if __name__ == "__main__":
 
     # object init
     if args.speaker_info_train == 0:
-        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], no_speaker_info_emo_trans_prob_dict['Ses01'], {}, {}, out_dict, learning_rate)
-        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], no_speaker_info_emo_trans_prob_dict['Ses02'], {}, {}, out_dict, learning_rate)
-        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], no_speaker_info_emo_trans_prob_dict['Ses03'], {}, {}, out_dict, learning_rate)
-        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], no_speaker_info_emo_trans_prob_dict['Ses04'], {}, {}, out_dict, learning_rate)
-        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], no_speaker_info_emo_trans_prob_dict['Ses05'], {}, {}, out_dict, learning_rate)
+        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], no_speaker_info_emo_trans_prob_dict['Ses01'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], no_speaker_info_emo_trans_prob_dict['Ses02'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], no_speaker_info_emo_trans_prob_dict['Ses03'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], no_speaker_info_emo_trans_prob_dict['Ses04'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], no_speaker_info_emo_trans_prob_dict['Ses05'], {}, {}, out_dict, args.learning_rate)
     else:
-        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], {}, inter_emo_trans_prob_dict['Ses01'], intra_emo_trans_prob_dict['Ses01'], out_dict, learning_rate)
-        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], {}, inter_emo_trans_prob_dict['Ses02'], intra_emo_trans_prob_dict['Ses02'], out_dict, learning_rate)
-        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], {}, inter_emo_trans_prob_dict['Ses03'], intra_emo_trans_prob_dict['Ses03'], out_dict, learning_rate)
-        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], {}, inter_emo_trans_prob_dict['Ses04'], intra_emo_trans_prob_dict['Ses04'], out_dict, learning_rate)
-        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], {}, inter_emo_trans_prob_dict['Ses05'], intra_emo_trans_prob_dict['Ses05'], out_dict, learning_rate)
+        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], {}, inter_emo_trans_prob_dict['Ses01'], intra_emo_trans_prob_dict['Ses01'], out_dict, args.learning_rate)
+        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], {}, inter_emo_trans_prob_dict['Ses02'], intra_emo_trans_prob_dict['Ses02'], out_dict, args.learning_rate)
+        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], {}, inter_emo_trans_prob_dict['Ses03'], intra_emo_trans_prob_dict['Ses03'], out_dict, args.learning_rate)
+        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], {}, inter_emo_trans_prob_dict['Ses04'], intra_emo_trans_prob_dict['Ses04'], out_dict, args.learning_rate)
+        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], {}, inter_emo_trans_prob_dict['Ses05'], intra_emo_trans_prob_dict['Ses05'], out_dict, args.learning_rate)
 
     emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
     label = []
@@ -625,7 +635,7 @@ if __name__ == "__main__":
 
     plt.figure()
     ann_list = []
-    plt.axis([0, iteration, 0.5, 0.8])
+    plt.axis([0, args.iteration, 0.5, 0.8])
     
     iters = [0, 0]
     uars = [0.5, 0.5]
@@ -633,8 +643,8 @@ if __name__ == "__main__":
     uars_arr = np.zeros(shape=(1,0))
     accs_arr = np.zeros(shape=(1,0))
 
-    for Iter in range(1, iteration+1, 1):
-        print('training iteration : '+str(Iter)+'/'+str(iteration))
+    for Iter in range(1, 10, 1):
+        print('training iteration : '+str(Iter)+'/'+str(args.iteration))
         CRF_model_Ses01.update()
         CRF_model_Ses02.update()
         CRF_model_Ses03.update()
@@ -643,7 +653,7 @@ if __name__ == "__main__":
         uar, acc, conf = test_acc(CRF_model_Ses01.W, CRF_model_Ses02.W, CRF_model_Ses03.W, CRF_model_Ses04.W, CRF_model_Ses05.W)
         uar = round(uar, 3)
         acc = round(acc, 3)
-        plot_dynamic_line_chart(uars, accs, Iter, iteration, uar, acc)
+        plot_dynamic_line_chart(uars, accs, Iter, args.iteration, uar, acc)
         print('==========================================')
     plt.savefig('result/uar&acc.png')
 
@@ -651,7 +661,7 @@ if __name__ == "__main__":
     sn.heatmap(conf, annot=True, fmt='d', cmap='Blues')
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.title('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
+    plt.title('DED performance: uar: %.3f, acc: %.3f\n%s' % (uar, acc, diagram_title), fontsize=8)
     plt.savefig('result/confusion_matrix.png')
     plt.show()
 
@@ -683,9 +693,9 @@ if __name__ == "__main__":
         print('Without concatenation')
     print('Viterbi algo. with', args.inter_intra_test)
     if args.speaker_info_train == 0:
-        print('not consider speaker info')
+        print('Training does not consider speaker info')
     elif args.speaker_info_train == 1:
-        print('consider intra-speaker only')
+        print('Training considers intra-speaker only')
     elif args.speaker_info_train == 2:
-        print('consider intra-speaker & inter-speaker')
+        print('Training considers intra-speaker & inter-speaker')
     print("====================args====================")
