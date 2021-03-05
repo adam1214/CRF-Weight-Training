@@ -643,7 +643,7 @@ if __name__ == "__main__":
     uars_arr = np.zeros(shape=(1,0))
     accs_arr = np.zeros(shape=(1,0))
 
-    for Iter in range(1, 10, 1):
+    for Iter in range(1, args.iteration + 1, 1):
         print('training iteration : '+str(Iter)+'/'+str(args.iteration))
         CRF_model_Ses01.update()
         CRF_model_Ses02.update()
