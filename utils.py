@@ -3,44 +3,44 @@ from sklearn.metrics import confusion_matrix, recall_score, accuracy_score
 import numpy as np
 
 def convert_to_index(emotion):
-  """convert emotion to index """
-  map_emo = {'ang':0, 'hap':1, 'neu':2, 'sad':3}
-  if emotion in map_emo.keys():
-    return map_emo[emotion]
-  else:
-    return -1
+    """convert emotion to index """
+    map_emo = {'ang':0, 'hap':1, 'neu':2, 'sad':3}
+    if emotion in map_emo.keys():
+        return map_emo[emotion]
+    else:
+        return -1
 
 def evaluate(predict, label): #uar, acc, conf = utils.evaluate(predict, label)
-  # Only evaluate utterances labeled in defined 4 emotion states
-  label, predict = np.array(label), np.array(predict)
-  index = [label != -1]
-  label, predict = label[tuple(index)], predict[tuple(index)]
+    # Only evaluate utterances labeled in defined 4 emotion states
+    label, predict = np.array(label), np.array(predict)
+    index = [label != -1]
+    label, predict = label[tuple(index)], predict[tuple(index)]
 
-  return recall_score(label, predict, average='macro'), accuracy_score(label, predict), confusion_matrix(label, predict)
+    return recall_score(label, predict, average='macro'), accuracy_score(label, predict), confusion_matrix(label, predict)
 
 def split_dialog(dialogs):
-  """Split utterances in a dialog into a set of speaker's utternaces in that dialog.
-     See eq (5) in the paper.
-  Arg:
-    dialogs: dict, for example, utterances of two speakers in dialog_01: 
-            {dialog_01: [utt_spk01_1, utt_spk02_1, utt_spk01_2, ...]}.
-  Return:
-    spk_dialogs: dict, a collection of speakers' utterances in dialogs. for example:
-            {dialog_01_spk01: [utt_spk01_1, utt_spk01_2, ...],
-             dialog_01_spk02: [utt_spk02_1, utt_spk02_2, ...]}
-  """
+    """Split utterances in a dialog into a set of speaker's utternaces in that dialog.
+        See eq (5) in the paper.
+    Arg:
+        dialogs: dict, for example, utterances of two speakers in dialog_01: 
+                {dialog_01: [utt_spk01_1, utt_spk02_1, utt_spk01_2, ...]}.
+    Return:
+        spk_dialogs: dict, a collection of speakers' utterances in dialogs. for example:
+                {dialog_01_spk01: [utt_spk01_1, utt_spk01_2, ...],
+                dialog_01_spk02: [utt_spk02_1, utt_spk02_2, ...]}
+    """
 
-  spk_dialogs = {}
-  for dialog_id in dialogs.keys():
-    spk_dialogs[dialog_id+'_M'] = []
-    spk_dialogs[dialog_id+'_F'] = []
-    for utt_id in dialogs[dialog_id]:
-      if utt_id[-4] == 'M':
-        spk_dialogs[dialog_id+'_M'].append(utt_id)
-      elif utt_id[-4] == 'F':
-        spk_dialogs[dialog_id+'_F'].append(utt_id)
+    spk_dialogs = {}
+    for dialog_id in dialogs.keys():
+        spk_dialogs[dialog_id+'_M'] = []
+        spk_dialogs[dialog_id+'_F'] = []
+        for utt_id in dialogs[dialog_id]:
+            if utt_id[-4] == 'M':
+                spk_dialogs[dialog_id+'_M'].append(utt_id)
+            elif utt_id[-4] == 'F':
+                spk_dialogs[dialog_id+'_F'].append(utt_id)
 
-  return spk_dialogs
+    return spk_dialogs
 
 def emo_trans_prob_BI_without_softmax_inter(emo_dict, dialogs, val=None):
     # only estimate anger, happiness, neutral, sadness
@@ -459,9 +459,9 @@ def get_val_emo_trans_prob(emo_dict, dialogs):
 if __name__ == "__main__":
     emo_dict = joblib.load('./data/U2U_4emo_all_iemocap.pkl')
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
-    
+
     #trans_prob = emo_trans_prob_BI_without_softmax_no_speaker_info(emo_dict, dialogs)
-    get_val_emo_trans_prob(emo_dict, dialogs)
+    #get_val_emo_trans_prob(emo_dict, dialogs)
     
     #intra_trans_probs = emo_trans_prob_BI_without_softmax_intra(emo_dict, dialogs)
     #inter_trans_probs = emo_trans_prob_BI_without_softmax_inter(emo_dict, dialogs)

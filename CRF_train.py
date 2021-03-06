@@ -34,11 +34,15 @@ class CRF_SGD:
         # 使用 np.random.permutation 給定資料取出順序
         self.rand_pick_list = np.random.permutation(len(X))     
         self.rand_pick_list_index = 0
-
-        #print(self.forward_alpha(6+2, 'End'))
-        #print(self.backward_beta(6, 6, 'hap'))
-        #exit()
         
+        if args.speaker_info_train == 1:
+            self.X_M_batch = []
+            self.X_F_batch = []
+            self.Y_M_batch = []
+            self.Y_F_batch = []
+            self.batch_list_index = 0
+            self.trans_prob_inter = {}
+
         self.update_batch()
     
     def forward_alpha(self, t, y1):
@@ -48,7 +52,6 @@ class CRF_SGD:
             return math.exp(0)
         else:
             Q = [([0]*4) for i in range(t)] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
-        
         utt = self.X_batch[0]
         pre_spk = utt[-4]
         if args.speaker_info_train == 0:
@@ -288,6 +291,17 @@ class CRF_SGD:
                 for e_com in emo_com_list:
                     self.nested_dict(G_t_lookup_dict, [t, e_com], self.G_t(e_com[0], e_com[1], t))
         return G_t_lookup_dict
+    
+    def split_dialog(self):
+        for i in range(0,len(self.X_batch),1):
+            utt = self.X_batch[i]
+            emo = self.Y_batch[i]
+            if utt[-4] == 'F':
+                self.X_F_batch.append(utt)
+                self.Y_F_batch.append(emo)
+            else:
+                self.X_M_batch.append(utt)
+                self.Y_M_batch.append(emo)
 
     def update_batch(self): # 更新批次
         #每次更新時，採滾動的方式依次取出 N 筆資料
@@ -301,6 +315,25 @@ class CRF_SGD:
         #print(self.X_batch)
         self.Y_batch = self.Y[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
         #print(self.Y_batch)
+        if args.speaker_info_train == 1:
+            self.X_M_batch.clear()
+            self.X_F_batch.clear()
+            self.Y_M_batch.clear()
+            self.Y_F_batch.clear()
+            self.split_dialog()
+            self.X_batch_list = [self.X_M_batch, self.X_F_batch]
+            self.Y_batch_list = [self.Y_M_batch, self.Y_F_batch]
+            
+            self.batch_list_index = 0
+            self.X_batch = self.X_batch_list[self.batch_list_index]
+            self.Y_batch = self.Y_batch_list[self.batch_list_index]
+            if len(self.X_batch) == 0:
+                self.batch_list_index += 1
+                self.X_batch = self.X_batch_list[self.batch_list_index]
+                self.Y_batch = self.Y_batch_list[self.batch_list_index]
+
+        #print(self.X_F_batch)
+        #print(self.Y_F_batch)
         #print(len(self.X_batch))
         #print(len(self.Y_batch))
         
@@ -401,8 +434,13 @@ class CRF_SGD:
 
         sum_alpha_beta_np = sum_alpha_beta_np / Z
         grad_W_np = N_e1e2 - sum_alpha_beta_np
-
-        self.update_batch()
+        if args.speaker_info_train == 1 and self.batch_list_index == 0:
+            self.batch_list_index += 1
+            self.X_batch = self.X_batch_list[self.batch_list_index]
+            if len(self.X_batch) == 0:
+                self.update_batch()
+        else:
+            self.update_batch()
         return grad_W_np
 
     def update(self):
@@ -417,6 +455,9 @@ class CRF_SGD:
             self.W_old[weight_name] = self.W[weight_name]
             self.W[weight_name] = self.W_np[j]
             j += 1
+
+        if args.speaker_info_train == 1 and self.batch_list_index == 1:
+            self.update()
         
 def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
     predict = []
@@ -501,7 +542,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dataset", type=str, help="Set the dataset to be used for training:\n\tOption 1:Original\n\tOption 2:C2C (Class to class mapping by pre-trained classifier)\n\tOption 3:U2U (Utt to Utt mapping by pre-trained classifier)", default = "Original")
     parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no", default = 0) # no concatenation is better
     parser.add_argument("-n", "--inter_intra_test", type=str, help="When predicting a dialog, use intraspeaker emotion flow or interspeaker emotion change.", default = "intra")
-    parser.add_argument("-s", "--speaker_info_train", type=int, help="When estimating emotion transition probabilities, do you want to consider speakers information?\n\t0:not consider speaker info\n\t1:consider intra-speaker only\n\t2:consider intra-speaker & inter-speaker", default = 2)
+    parser.add_argument("-s", "--speaker_info_train", type=int, help="When estimating emotion transition probabilities, do you want to consider speakers information?\n\t0:not consider speaker info\n\t1:consider intra-speaker only\n\t2:consider intra-speaker & inter-speaker", default = 1)
 
     args = parser.parse_args()
     diagram_title = 'Learning Rate:' + str(args.learning_rate) + '#####' + str(args.iteration) + ' Iteration#####' + args.dataset + ' dataset\n'
