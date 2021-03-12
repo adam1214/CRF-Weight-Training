@@ -574,7 +574,7 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
     max_uars_index = np.argmax(uars_arr) #max value uars_arr index
     #max_accs_index = np.argmax(accs_arr) #max value accs_arr index
     
-    show_uar_max = '('+str(max_uars_index + 1) + ', ' + str(uars_arr[max_uars_index])+')'
+    show_uar_max = '('+str(max_uars_index + 1) + ', ' + str(round(uars_arr[max_uars_index], 3))+')'
     #show_acc_max = '('+str(max_accs_index + 1) + ', ' + str(accs_arr[max_accs_index])+')'
 
     ann = plt.annotate(show_uar_max, xytext=(max_uars_index + 1, uars_arr[max_uars_index]), xy = (max_uars_index + 1, uars_arr[max_uars_index]), c = 'red')
@@ -582,7 +582,7 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
     #ann = plt.annotate(show_acc_max, xytext=(max_accs_index + 1, accs_arr[max_accs_index] + 0.02), xy = (max_accs_index + 1, accs_arr[max_accs_index]), c = 'blue')
     #ann_list.append(ann)
 
-    print('iteration ' + str(max_uars_index + 1) + ' with the best UAR:' + str(uars_arr[max_uars_index]))
+    print('iteration ' + str(max_uars_index + 1) + ' with the best UAR:' + str(round(uars_arr[max_uars_index], 3)))
     #print('iteration ' + str(max_accs_index + 1) + ' with the best ACC:' + str(accs_arr[max_accs_index]))
     
     if Iter == 1:
@@ -602,7 +602,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no.", default = 0) # no concatenation is better
     parser.add_argument("-n", "--inter_intra_test", type=str, help="When predicting a dialog, use intraspeaker emotion flow or interspeaker emotion change.", default = "intra")
     parser.add_argument("-s", "--speaker_info_train", type=int, help="When estimating emotion transition probabilities, do you want to consider speakers information?\n\t0:not consider speaker info\n\t1:consider intra-speaker only\n\t2:consider intra-speaker & inter-speaker", default = 1)
-    parser.add_argument("-f", "--training_batch_size", type=int, help="Set training batch size. Setting -1 means that flexible training batch size. Note that the fixed-size dialog segment is all the same speaker ID.", default = 15)
+    parser.add_argument("-f", "--training_batch_size", type=int, help="Set training batch size. Setting -1 means that flexible training batch size. Note that the fixed-size dialog segment is all the same speaker ID.", default = 5)
 
     args = parser.parse_args()
     diagram_title = 'Learning Rate:' + str(args.learning_rate) + '#####' + str(args.iteration) + ' Iteration#####' + args.dataset + ' dataset\n'
@@ -613,11 +613,16 @@ if __name__ == "__main__":
     diagram_title += 'Viterbi algo. with '
     diagram_title += args.inter_intra_test
     if args.speaker_info_train == 0:
-        diagram_title += '\nTraining does not consider speaker info'
+        diagram_title += '\nTraining does not consider speaker info#####'
     elif args.speaker_info_train == 1:
-        diagram_title += '\nTraining considers intra-speaker only'
+        diagram_title += '\nTraining considers intra-speaker only#####'
     elif args.speaker_info_train == 2:
-        diagram_title += '\nTraining considers intra-speaker & inter-speaker'
+        diagram_title += '\nTraining considers intra-speaker & inter-speaker#####'
+    if args.training_batch_size < 0:
+        diagram_title += 'Unfixed-length training batch'
+    else:
+        diagram_title += 'Training batch with a fixed length of '
+        diagram_title += str(args.training_batch_size)
 
     emo_mapping_dict1 = {'a':'ang', 'h':'hap', 'n':'neu', 's':'sad', 'S':'Start', 'd':'End', 'p':'pre-trained'}
     emo_mapping_dict2 = {'ang':'a', 'hap':'h', 'neu':'n', 'sad':'s', 'Start':'Start', 'End':'End', 'pre-trained':'p'}
@@ -765,8 +770,7 @@ if __name__ == "__main__":
             Ses03_validation_best_weight = CRF_model_Ses03.W
             Ses04_validation_best_weight = CRF_model_Ses04.W
             Ses05_validation_best_weight = CRF_model_Ses05.W
-        uar = round(uar, 3)
-        acc = round(acc, 3)
+
         plot_dynamic_line_chart(uars, accs, Iter, args.iteration, uar, acc)
         print('==========================================')
 
@@ -789,15 +793,13 @@ if __name__ == "__main__":
     file5.close()
     
     uar, acc, conf = test_uar_acc(Ses01_validation_best_weight, Ses02_validation_best_weight, Ses03_validation_best_weight, Ses04_validation_best_weight, Ses05_validation_best_weight)
-    uar = round(uar, 3)
-    acc = round(acc, 3)
 
     plt.savefig('result/uar&acc.png')
     plt.figure()
     sn.heatmap(conf, annot=True, fmt='d', cmap='Blues')
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.title('DED performance: uar: %.3f, acc: %.3f\n%s' % (uar, acc, diagram_title), fontsize=8)
+    plt.title('DED performance: uar: %.3f, acc: %.3f\n%s' % (round(uar, 3), round(acc, 3), diagram_title), fontsize=8)
     plt.savefig('result/confusion_matrix.png')
     plt.show()
 
@@ -816,4 +818,8 @@ if __name__ == "__main__":
         print('Training considers intra-speaker only')
     elif args.speaker_info_train == 2:
         print('Training considers intra-speaker & inter-speaker')
+    if args.training_batch_size < 0:
+        print('Unfixed-length training batch')
+    else:
+        print('Training batch with a fixed length of', args.training_batch_size)
     print("====================args====================")
