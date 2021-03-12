@@ -5,9 +5,12 @@ import math
 import seaborn as sn
 import matplotlib.pyplot as plt
 
-def viterbi_inter(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train):
+def viterbi_inter(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train, validation_or_test):
     emo_list = ['a', 'h', 'n', 's']
-    predict = []
+    if validation_or_test == 'test':
+        predict = []
+    else:
+        predict_dict = {}
     trans_prob = {}
     Q = [([0]*4) for i in range(len(dialogs))] # [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     
@@ -22,7 +25,10 @@ def viterbi_inter(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_em
     Q[0][3] = Weight['Start2s']*trans_prob['Start2s'] + Weight['p_s']*out_dict[dialogs[0]][3]
     emo_vals = [Q[0][0], Q[0][1], Q[0][2], Q[0][3]]
     max_index = emo_vals.index(max(emo_vals)) # 最大值的索引
-    predict.append(max_index)
+    if validation_or_test == 'test':
+        predict.append(max_index)
+    else:
+        predict_dict[dialogs[0]] = max_index
 
     for i in range(1, len(dialogs), 1):
         pre_utt = dialogs[i-1]
@@ -44,13 +50,22 @@ def viterbi_inter(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, inter_em
             Q[i][j] = max_val
         emo_vals = [Q[i][0], Q[i][1], Q[i][2], Q[i][3]]
         max_index = emo_vals.index(max(emo_vals)) # 最大值的索引
-        predict.append(max_index)
+        if validation_or_test == 'test':
+            predict.append(max_index)
+        else:
+            predict_dict[dialogs[i]] = max_index
     if concatenate_or_not == 0:
-        return predict
+        if validation_or_test == 'test':
+            return predict
+        else:
+            return predict_dict
     else:
-        return predict[int(len(predict)/2):len(predict)]
+        if validation_or_test == 'test':
+            return predict[int(len(predict)/2):len(predict)]
+        else:
+            return predict_dict
 
-def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train): # better than viterbi_inter
+def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, intra_emo_trans_prob_dict, out_dict, concatenate_or_not, speaker_info_train, validation_or_test): # better than viterbi_inter
     emo_list = ['a', 'h', 'n', 's']
     M_utts = []
     F_utts = []
@@ -100,9 +115,15 @@ def viterbi_intra(Weight, dialogs, no_speaker_info_emo_trans_prob_dict, intra_em
         predict.append(predict_dict[utt])
 
     if concatenate_or_not == 0:
-        return predict
+        if validation_or_test == 'test':
+            return predict
+        else:
+            return predict_dict
     else:
-        return predict[int(len(predict)/2):len(predict)]
+        if validation_or_test == 'test':
+            return predict[int(len(predict)/2):len(predict)]
+        else:
+            return predict_dict
 
 if __name__ == "__main__":
     '''

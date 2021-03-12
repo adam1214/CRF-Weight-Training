@@ -1,6 +1,7 @@
 import joblib
 from sklearn.metrics import confusion_matrix, recall_score, accuracy_score
 import numpy as np
+import random
 
 def convert_to_index(emotion):
     """convert emotion to index """
@@ -456,12 +457,58 @@ def get_val_emo_trans_prob(emo_dict, dialogs):
     
     return no_speaker_info_emo_trans_prob_dict, intra_emo_trans_prob_dict, inter_emo_trans_prob_dict
 
-if __name__ == "__main__":
-    emo_dict = joblib.load('./data/U2U_4emo_all_iemocap.pkl')
-    dialogs = joblib.load('./data/dialog_iemocap.pkl')
+def get_validation_sets(emo_dict, dialogs):
+    random.seed(1)
+    validation_dict = {'Ses01':{'ang':[],'hap':[],'neu':[],'sad':[]},'Ses02':{'ang':[],'hap':[],'neu':[],'sad':[]},'Ses03':{'ang':[],'hap':[],'neu':[],'sad':[]},'Ses04':{'ang':[],'hap':[],'neu':[],'sad':[]},'Ses05':{'ang':[],'hap':[],'neu':[],'sad':[]}}
+    validation_dict_emos_utt = {'Ses01':[],'Ses02':[],'Ses03':[],'Ses04':[],'Ses05':[]}
+    validation_dict_emos_label = {'Ses01':[],'Ses02':[],'Ses03':[],'Ses04':[],'Ses05':[]}
+    session_utt_Quantity = {'Ses01':0,'Ses02':0,'Ses03':0,'Ses04':0,'Ses05':0}
+    for utts_list in dialogs.values():
+        session_utt_Quantity[(utts_list[0])[0:5]] += len(utts_list)
+    #print(session_utt_Quantity)
 
+    for Ses_num in validation_dict:
+        for utts_list in dialogs.values():
+            if (utts_list[0])[0:5] != Ses_num:
+                continue
+            else:
+                for utt in utts_list:
+                    if emo_dict[utt] == 'ang':
+                        validation_dict[Ses_num]['ang'].append(utt)
+                    elif emo_dict[utt] == 'hap':
+                        validation_dict[Ses_num]['hap'].append(utt)
+                    elif emo_dict[utt] == 'neu':
+                        validation_dict[Ses_num]['neu'].append(utt)
+                    elif emo_dict[utt] == 'sad':
+                        validation_dict[Ses_num]['sad'].append(utt)
+        validation_dict[Ses_num]['ang'] = random.sample(validation_dict[Ses_num]['ang'], int(session_utt_Quantity[Ses_num]*0.025))
+        validation_dict[Ses_num]['hap'] = random.sample(validation_dict[Ses_num]['hap'], int(session_utt_Quantity[Ses_num]*0.025)) 
+        validation_dict[Ses_num]['neu'] = random.sample(validation_dict[Ses_num]['neu'], int(session_utt_Quantity[Ses_num]*0.025)) 
+        validation_dict[Ses_num]['sad'] = random.sample(validation_dict[Ses_num]['sad'], int(session_utt_Quantity[Ses_num]*0.025)) 
+
+        validation_dict_emos_utt[Ses_num] = validation_dict[Ses_num]['ang'] + validation_dict[Ses_num]['hap'] + validation_dict[Ses_num]['neu'] + validation_dict[Ses_num]['sad']
+        
+        for utt in validation_dict_emos_utt[Ses_num]:
+            if emo_dict[utt] == 'ang':
+                validation_dict_emos_label[Ses_num].append(0)
+            elif emo_dict[utt] == 'hap':
+                validation_dict_emos_label[Ses_num].append(1)
+            elif emo_dict[utt] == 'neu':
+                validation_dict_emos_label[Ses_num].append(2)
+            elif emo_dict[utt] == 'sad':
+                validation_dict_emos_label[Ses_num].append(3)
+
+    return validation_dict_emos_utt, validation_dict_emos_label
+
+if __name__ == "__main__":
+    
+    emo_dict = joblib.load('./data/emo_all_iemocap.pkl')
+    dialogs = joblib.load('./data/dialog_iemocap.pkl')
+    
+    validation_dict_emos_utt, validation_dict_emos_label = get_validation_sets(emo_dict, dialogs)
     #trans_prob = emo_trans_prob_BI_without_softmax_no_speaker_info(emo_dict, dialogs)
     #get_val_emo_trans_prob(emo_dict, dialogs)
     
     #intra_trans_probs = emo_trans_prob_BI_without_softmax_intra(emo_dict, dialogs)
     #inter_trans_probs = emo_trans_prob_BI_without_softmax_inter(emo_dict, dialogs)
+    

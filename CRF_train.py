@@ -1,11 +1,12 @@
 import numpy as np
+import seaborn as sn
+import matplotlib.pyplot as plt
+import argparse
+import random
 import joblib
 import math
 import itertools
 import pickle
-import seaborn as sn
-import matplotlib.pyplot as plt
-import argparse
 
 import utils
 import CRF_test
@@ -14,9 +15,11 @@ from argparse import RawTextHelpFormatter
 
 # 給定隨機種子，使每次執行結果保持一致
 np.random.seed(1)
-
+random.seed(1)
 class CRF_SGD:
-    def __init__(self, W, X, Y, trans_prob_no_spk_info, trans_prob_inter, trans_prob_intra, out_dict, learning_rate):
+    def __init__(self, model_name, W, X, Y, trans_prob_no_spk_info, trans_prob_inter, trans_prob_intra, out_dict, learning_rate):
+        self.update_batch_flag = 0
+        self.model_name = model_name
         self.W = W
         self.W_np = np.zeros((28))
         self.W_old = {}
@@ -24,6 +27,8 @@ class CRF_SGD:
             self.W_old[weight_name] = self.W[weight_name]
         self.X = X
         self.Y = Y
+        self.X_batch = []
+        self.Y_batch = []
         self.trans_prob_no_spk_info = trans_prob_no_spk_info
         self.trans_prob_inter = trans_prob_inter
         self.trans_prob_intra = trans_prob_intra
@@ -307,19 +312,34 @@ class CRF_SGD:
         #每次更新時，採滾動的方式依次取出 N 筆資料
         #print(self.rand_pick_list[self.rand_pick_list_index])
         #print(self.X[self.rand_pick_list[self.rand_pick_list_index]])
+        utt_num = 1
+        self.X_batch.clear()
+        self.Y_batch.clear()
+        self.X_batch.insert(0, self.X[self.rand_pick_list[self.rand_pick_list_index]])
+        self.Y_batch.insert(0, self.Y[self.rand_pick_list[self.rand_pick_list_index]])
         for utt_index in range(self.rand_pick_list[self.rand_pick_list_index] - 1, -2, -1):
-            if self.X[self.rand_pick_list[self.rand_pick_list_index]][:-5] != self.X[utt_index][:-5]:
+            if self.X[self.rand_pick_list[self.rand_pick_list_index]][:-5] != self.X[utt_index][:-5] or utt_num == args.training_batch_size:
                 break
-
-        self.X_batch = self.X[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
-        #print(self.X_batch)
-        self.Y_batch = self.Y[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
-        #print(self.Y_batch)
+            elif self.X_batch[0][-4] == self.X[utt_index][-4] and args.training_batch_size >= 0: #the same speaker id
+                self.X_batch.insert(0, self.X[utt_index])
+                self.Y_batch.insert(0, self.Y[utt_index])
+                utt_num += 1
+        if args.training_batch_size == -1: #no fixed length training batch
+            self.X_batch = self.X[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
+            self.Y_batch = self.Y[utt_index+1:self.rand_pick_list[self.rand_pick_list_index]+1]
+        else:
+            #padding
+            edge_utt = self.X_batch[0]
+            edge_label = self.Y_batch[0]
+            for i in range(0, args.training_batch_size - len(self.X_batch), 1):
+                self.X_batch.insert(0, edge_utt)
+                self.Y_batch.insert(0, edge_label)
+            
         if args.speaker_info_train == 1:
-            self.X_M_batch.clear()
-            self.X_F_batch.clear()
-            self.Y_M_batch.clear()
-            self.Y_F_batch.clear()
+            self.X_M_batch = []
+            self.X_F_batch = []
+            self.Y_M_batch = []
+            self.Y_F_batch = []
             self.split_dialog()
             self.X_batch_list = [self.X_M_batch, self.X_F_batch]
             self.Y_batch_list = [self.Y_M_batch, self.Y_F_batch]
@@ -438,13 +458,17 @@ class CRF_SGD:
             self.batch_list_index += 1
             self.X_batch = self.X_batch_list[self.batch_list_index]
             if len(self.X_batch) == 0:
+                self.update_batch_flag = 1
                 self.update_batch()
         else:
+            self.update_batch_flag = 1
             self.update_batch()
         return grad_W_np
 
     def update(self):
         # 計算梯度
+        self.update_batch_flag = 0
+        #print(self.model_name, 'training batch:', self.X_batch)
         grad_W_np = self.gradient()
         self.W_np = np.array(list(self.W.values()))
 
@@ -456,10 +480,10 @@ class CRF_SGD:
             self.W[weight_name] = self.W_np[j]
             j += 1
 
-        if args.speaker_info_train == 1 and self.batch_list_index == 1:
+        if args.speaker_info_train == 1 and self.batch_list_index == 1 and self.update_batch_flag == 0:
             self.update()
         
-def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
+def test_uar_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
     predict = []
     for _, dia in enumerate(dialogs):
         Session_num = dialogs[dia][0][0:5]
@@ -480,12 +504,47 @@ def test_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
             concat_dialog = dialogs[dia]
         
         if args.inter_intra_test == 'inter':
-            predict += CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train)
+            predict += CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train, 'test')
         elif args.inter_intra_test == 'intra':
-            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train)
+            predict += CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train, 'test')
     
     uar, acc, conf = utils.evaluate(predict, label)
     print('DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
+    print(conf)
+    return uar, acc, conf
+
+def validation_uar_acc(S1_Weight, S2_Weight, S3_Weight, S4_Weight, S5_Weight):
+    predict_dict = {}
+    predict = []
+    for _, dia in enumerate(dialogs):
+        Session_num = dialogs[dia][0][0:5]
+        if Session_num == 'Ses02':
+            W = S1_Weight
+        elif Session_num == 'Ses03':
+            W = S2_Weight
+        elif Session_num == 'Ses04':
+            W = S3_Weight
+        elif Session_num == 'Ses05':
+            W = S4_Weight
+        elif Session_num == 'Ses01':
+            W = S5_Weight
+        
+        if args.concatenation == 1:
+            concat_dialog = dialogs[dia] + dialogs[dia]
+        else:
+            concat_dialog = dialogs[dia]
+        
+        if args.inter_intra_test == 'inter':
+            predict_dict.update(CRF_test.viterbi_inter(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], inter_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train, 'validation'))
+        elif args.inter_intra_test == 'intra':
+            predict_dict.update(CRF_test.viterbi_intra(W, concat_dialog, no_speaker_info_emo_trans_prob_dict[Session_num], intra_emo_trans_prob_dict[Session_num], out_dict, args.concatenation, args.speaker_info_train, 'validation'))
+    
+    for utts_list in validation_dict_emos_utt.values():
+        for utt in utts_list:
+            predict.append(predict_dict[utt])
+
+    uar, acc, conf = utils.evaluate(predict, validation_dict_emos_label['Ses01']+validation_dict_emos_label['Ses02']+validation_dict_emos_label['Ses03']+validation_dict_emos_label['Ses04']+validation_dict_emos_label['Ses05'])
+    print('According to validation set, DED performance: uar: %.3f, acc: %.3f' % (uar, acc))
     print(conf)
     return uar, acc, conf
 
@@ -498,11 +557,11 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
     uars[0] = uars[1]
     uars[1] = uar
 
-    accs[0] = accs[1]
-    accs[1] = acc
+    #accs[0] = accs[1]
+    #accs[1] = acc
 
     plt.plot(iters, uars, c='red', marker='s', label='UAR', lw=1, ms=3)
-    plt.plot(iters, accs, c='blue', marker='s', label='ACC', lw=1, ms=3)
+    #plt.plot(iters, accs, c='blue', marker='s', label='ACC', lw=1, ms=3)
     
     #print(ann_list)
     for _, ann in enumerate(ann_list):
@@ -510,21 +569,21 @@ def plot_dynamic_line_chart(uars, accs, Iter, iteration, uar ,acc):
     ann_list[:] = []
 
     uars_arr = np.append(uars_arr, uar)
-    accs_arr = np.append(accs_arr, acc)
+    #accs_arr = np.append(accs_arr, acc)
 
     max_uars_index = np.argmax(uars_arr) #max value uars_arr index
-    max_accs_index = np.argmax(accs_arr) #max value accs_arr index
+    #max_accs_index = np.argmax(accs_arr) #max value accs_arr index
     
     show_uar_max = '('+str(max_uars_index + 1) + ', ' + str(uars_arr[max_uars_index])+')'
-    show_acc_max = '('+str(max_accs_index + 1) + ', ' + str(accs_arr[max_accs_index])+')'
+    #show_acc_max = '('+str(max_accs_index + 1) + ', ' + str(accs_arr[max_accs_index])+')'
 
     ann = plt.annotate(show_uar_max, xytext=(max_uars_index + 1, uars_arr[max_uars_index]), xy = (max_uars_index + 1, uars_arr[max_uars_index]), c = 'red')
     ann_list.append(ann)
-    ann = plt.annotate(show_acc_max, xytext=(max_accs_index + 1, accs_arr[max_accs_index] + 0.02), xy = (max_accs_index + 1, accs_arr[max_accs_index]), c = 'blue')
-    ann_list.append(ann)
+    #ann = plt.annotate(show_acc_max, xytext=(max_accs_index + 1, accs_arr[max_accs_index] + 0.02), xy = (max_accs_index + 1, accs_arr[max_accs_index]), c = 'blue')
+    #ann_list.append(ann)
 
     print('iteration ' + str(max_uars_index + 1) + ' with the best UAR:' + str(uars_arr[max_uars_index]))
-    print('iteration ' + str(max_accs_index + 1) + ' with the best ACC:' + str(accs_arr[max_accs_index]))
+    #print('iteration ' + str(max_accs_index + 1) + ' with the best ACC:' + str(accs_arr[max_accs_index]))
     
     if Iter == 1:
         plt.legend(loc = 'upper left')
@@ -540,9 +599,10 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--iteration", type=int, help="Set parameter update times.", default = 3000)
     parser.add_argument("-l", "--learning_rate", type=float, help="Set learning rate.", default = 0.000001)
     parser.add_argument("-d", "--dataset", type=str, help="Set the dataset to be used for training:\n\tOption 1:Original\n\tOption 2:C2C (Class to class mapping by pre-trained classifier)\n\tOption 3:U2U (Utt to Utt mapping by pre-trained classifier)", default = "Original")
-    parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no", default = 0) # no concatenation is better
+    parser.add_argument("-c", "--concatenation", type=int, help="When predicting a dialog, do you want to duplicate it 2 times and concatenate them together? 1 is yes, 0 is no.", default = 0) # no concatenation is better
     parser.add_argument("-n", "--inter_intra_test", type=str, help="When predicting a dialog, use intraspeaker emotion flow or interspeaker emotion change.", default = "intra")
     parser.add_argument("-s", "--speaker_info_train", type=int, help="When estimating emotion transition probabilities, do you want to consider speakers information?\n\t0:not consider speaker info\n\t1:consider intra-speaker only\n\t2:consider intra-speaker & inter-speaker", default = 1)
+    parser.add_argument("-f", "--training_batch_size", type=int, help="Set training batch size. Setting -1 means that flexible training batch size. Note that the fixed-size dialog segment is all the same speaker ID.", default = 15)
 
     args = parser.parse_args()
     diagram_title = 'Learning Rate:' + str(args.learning_rate) + '#####' + str(args.iteration) + ' Iteration#####' + args.dataset + ' dataset\n'
@@ -573,6 +633,12 @@ if __name__ == "__main__":
     dialogs = joblib.load('./data/dialog_iemocap.pkl')
     out_dict = joblib.load('./data/outputs.pkl')
 
+    emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
+    validation_dict_emos_utt, validation_dict_emos_label = utils.get_validation_sets(emo_dict_label, dialogs)
+    label = []
+    for _, dia in enumerate(dialogs):
+        label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
+
     Ses_01_X = []
     Ses_02_X = []
     Ses_03_X = []
@@ -591,19 +657,19 @@ if __name__ == "__main__":
         for utt in dialog:
             if emo_dict[utt] == 'ang' or emo_dict[utt] == 'hap' or emo_dict[utt] == 'neu' or emo_dict[utt] == 'sad':
                 Session_num = utt[0:5]
-                if Session_num == 'Ses01':
+                if Session_num == 'Ses01' and utt not in validation_dict_emos_utt['Ses01']:
                     Ses_01_X.append(utt)
                     Ses_01_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses02':
+                elif Session_num == 'Ses02' and utt not in validation_dict_emos_utt['Ses02']:
                     Ses_02_X.append(utt)
                     Ses_02_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses03':
+                elif Session_num == 'Ses03' and utt not in validation_dict_emos_utt['Ses03']:
                     Ses_03_X.append(utt)
                     Ses_03_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses04':
+                elif Session_num == 'Ses04' and utt not in validation_dict_emos_utt['Ses04']:
                     Ses_04_X.append(utt)
                     Ses_04_Y.append(emo_dict[utt])
-                elif Session_num == 'Ses05':
+                elif Session_num == 'Ses05' and utt not in validation_dict_emos_utt['Ses05']:
                     Ses_05_X.append(utt)
                     Ses_05_Y.append(emo_dict[utt])
             elif args.dataset == 'Original':
@@ -657,23 +723,17 @@ if __name__ == "__main__":
 
     # object init
     if args.speaker_info_train == 0:
-        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], no_speaker_info_emo_trans_prob_dict['Ses01'], {}, {}, out_dict, args.learning_rate)
-        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], no_speaker_info_emo_trans_prob_dict['Ses02'], {}, {}, out_dict, args.learning_rate)
-        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], no_speaker_info_emo_trans_prob_dict['Ses03'], {}, {}, out_dict, args.learning_rate)
-        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], no_speaker_info_emo_trans_prob_dict['Ses04'], {}, {}, out_dict, args.learning_rate)
-        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], no_speaker_info_emo_trans_prob_dict['Ses05'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses01 = CRF_SGD('CRF_model_Ses01', W.copy(), X['Ses01'], Y['Ses01'], no_speaker_info_emo_trans_prob_dict['Ses01'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses02 = CRF_SGD('CRF_model_Ses02', W.copy(), X['Ses02'], Y['Ses02'], no_speaker_info_emo_trans_prob_dict['Ses02'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses03 = CRF_SGD('CRF_model_Ses03', W.copy(), X['Ses03'], Y['Ses03'], no_speaker_info_emo_trans_prob_dict['Ses03'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses04 = CRF_SGD('CRF_model_Ses04', W.copy(), X['Ses04'], Y['Ses04'], no_speaker_info_emo_trans_prob_dict['Ses04'], {}, {}, out_dict, args.learning_rate)
+        CRF_model_Ses05 = CRF_SGD('CRF_model_Ses05', W.copy(), X['Ses05'], Y['Ses05'], no_speaker_info_emo_trans_prob_dict['Ses05'], {}, {}, out_dict, args.learning_rate)
     else:
-        CRF_model_Ses01 = CRF_SGD(W.copy(), X['Ses01'], Y['Ses01'], {}, inter_emo_trans_prob_dict['Ses01'], intra_emo_trans_prob_dict['Ses01'], out_dict, args.learning_rate)
-        CRF_model_Ses02 = CRF_SGD(W.copy(), X['Ses02'], Y['Ses02'], {}, inter_emo_trans_prob_dict['Ses02'], intra_emo_trans_prob_dict['Ses02'], out_dict, args.learning_rate)
-        CRF_model_Ses03 = CRF_SGD(W.copy(), X['Ses03'], Y['Ses03'], {}, inter_emo_trans_prob_dict['Ses03'], intra_emo_trans_prob_dict['Ses03'], out_dict, args.learning_rate)
-        CRF_model_Ses04 = CRF_SGD(W.copy(), X['Ses04'], Y['Ses04'], {}, inter_emo_trans_prob_dict['Ses04'], intra_emo_trans_prob_dict['Ses04'], out_dict, args.learning_rate)
-        CRF_model_Ses05 = CRF_SGD(W.copy(), X['Ses05'], Y['Ses05'], {}, inter_emo_trans_prob_dict['Ses05'], intra_emo_trans_prob_dict['Ses05'], out_dict, args.learning_rate)
-
-    emo_dict_label = joblib.load('./data/emo_all_iemocap.pkl')
-    label = []
-    for _, dia in enumerate(dialogs):
-        label += [utils.convert_to_index(emo_dict_label[utt]) for utt in dialogs[dia]]
-
+        CRF_model_Ses01 = CRF_SGD('CRF_model_Ses01', W.copy(), X['Ses01'], Y['Ses01'], {}, inter_emo_trans_prob_dict['Ses01'], intra_emo_trans_prob_dict['Ses01'], out_dict, args.learning_rate)
+        CRF_model_Ses02 = CRF_SGD('CRF_model_Ses02', W.copy(), X['Ses02'], Y['Ses02'], {}, inter_emo_trans_prob_dict['Ses02'], intra_emo_trans_prob_dict['Ses02'], out_dict, args.learning_rate)
+        CRF_model_Ses03 = CRF_SGD('CRF_model_Ses03', W.copy(), X['Ses03'], Y['Ses03'], {}, inter_emo_trans_prob_dict['Ses03'], intra_emo_trans_prob_dict['Ses03'], out_dict, args.learning_rate)
+        CRF_model_Ses04 = CRF_SGD('CRF_model_Ses04', W.copy(), X['Ses04'], Y['Ses04'], {}, inter_emo_trans_prob_dict['Ses04'], intra_emo_trans_prob_dict['Ses04'], out_dict, args.learning_rate)
+        CRF_model_Ses05 = CRF_SGD('CRF_model_Ses05', W.copy(), X['Ses05'], Y['Ses05'], {}, inter_emo_trans_prob_dict['Ses05'], intra_emo_trans_prob_dict['Ses05'], out_dict, args.learning_rate)
     plt.figure()
     ann_list = []
     plt.axis([0, args.iteration, 0.5, 0.8])
@@ -683,7 +743,13 @@ if __name__ == "__main__":
     accs = [0.5, 0.5]
     uars_arr = np.zeros(shape=(1,0))
     accs_arr = np.zeros(shape=(1,0))
-
+    
+    pre_uar = 0
+    Ses01_validation_best_weight = {}
+    Ses02_validation_best_weight = {}
+    Ses03_validation_best_weight = {}
+    Ses04_validation_best_weight = {}
+    Ses05_validation_best_weight = {}
     for Iter in range(1, args.iteration + 1, 1):
         print('training iteration : '+str(Iter)+'/'+str(args.iteration))
         CRF_model_Ses01.update()
@@ -691,13 +757,42 @@ if __name__ == "__main__":
         CRF_model_Ses03.update()
         CRF_model_Ses04.update()
         CRF_model_Ses05.update()
-        uar, acc, conf = test_acc(CRF_model_Ses01.W, CRF_model_Ses02.W, CRF_model_Ses03.W, CRF_model_Ses04.W, CRF_model_Ses05.W)
+
+        uar, acc, conf = validation_uar_acc(CRF_model_Ses01.W, CRF_model_Ses02.W, CRF_model_Ses03.W, CRF_model_Ses04.W, CRF_model_Ses05.W)
+        if uar > pre_uar:
+            Ses01_validation_best_weight = CRF_model_Ses01.W
+            Ses02_validation_best_weight = CRF_model_Ses02.W
+            Ses03_validation_best_weight = CRF_model_Ses03.W
+            Ses04_validation_best_weight = CRF_model_Ses04.W
+            Ses05_validation_best_weight = CRF_model_Ses05.W
         uar = round(uar, 3)
         acc = round(acc, 3)
         plot_dynamic_line_chart(uars, accs, Iter, args.iteration, uar, acc)
         print('==========================================')
-    plt.savefig('result/uar&acc.png')
 
+    file1=open('weight/Ses01_weight.pickle','wb')
+    file2=open('weight/Ses02_weight.pickle','wb')
+    file3=open('weight/Ses03_weight.pickle','wb')
+    file4=open('weight/Ses04_weight.pickle','wb')
+    file5=open('weight/Ses05_weight.pickle','wb')
+
+    pickle.dump(Ses01_validation_best_weight, file1)
+    pickle.dump(Ses02_validation_best_weight, file2)
+    pickle.dump(Ses03_validation_best_weight, file3)
+    pickle.dump(Ses04_validation_best_weight, file4)
+    pickle.dump(Ses05_validation_best_weight, file5)
+
+    file1.close()
+    file2.close()
+    file3.close()
+    file4.close()
+    file5.close()
+    
+    uar, acc, conf = test_uar_acc(Ses01_validation_best_weight, Ses02_validation_best_weight, Ses03_validation_best_weight, Ses04_validation_best_weight, Ses05_validation_best_weight)
+    uar = round(uar, 3)
+    acc = round(acc, 3)
+
+    plt.savefig('result/uar&acc.png')
     plt.figure()
     sn.heatmap(conf, annot=True, fmt='d', cmap='Blues')
     plt.ylabel('True label')
@@ -706,24 +801,6 @@ if __name__ == "__main__":
     plt.savefig('result/confusion_matrix.png')
     plt.show()
 
-    file1=open('weight/Ses01_weight.pickle','wb')
-    file2=open('weight/Ses02_weight.pickle','wb')
-    file3=open('weight/Ses03_weight.pickle','wb')
-    file4=open('weight/Ses04_weight.pickle','wb')
-    file5=open('weight/Ses05_weight.pickle','wb')
-
-    pickle.dump(CRF_model_Ses01.W, file1)
-    pickle.dump(CRF_model_Ses02.W, file2)
-    pickle.dump(CRF_model_Ses03.W, file3)
-    pickle.dump(CRF_model_Ses04.W, file4)
-    pickle.dump(CRF_model_Ses05.W, file5)
-
-    file1.close()
-    file2.close()
-    file3.close()
-    file4.close()
-    file5.close()
-    
     print("====================args====================")
     print(args.iteration, 'iteration')
     print('learning rate:', args.learning_rate)
