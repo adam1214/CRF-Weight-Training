@@ -16,6 +16,6 @@
             * 2：consider intra-speaker & inter-speaker
       *    -f：Set training batch size. Setting -1 means that flexible training batch size. Note that the fixed-size dialog segment is all the same speaker ID. (default is 15)
 
-* After weight training, the weight value will be saved as `.pickle` in `weight` directory
+* After weight training, the weight value will be saved as `.pickle` in `weight` directory.
 * Test ACC & UAR
     * `python3 CRF_test.py`
